@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 function LoginPage() {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center px-6">
       <div className="bg-white shadow-xl rounded-3xl p-10 w-full max-w-md">
@@ -13,18 +17,21 @@ function LoginPage() {
         <input
           type="email"
           placeholder="Email"
-          className="w-full border rounded-xl p-4 mb-4"
+          className="w-full border border-slate-300 rounded-xl p-4 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
         <input
           type="password"
           placeholder="Password"
-          className="w-full border rounded-xl p-4 mb-6"
+          className="w-full border border-slate-300 rounded-xl p-4 mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
-        <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-4 font-semibold transition">
-          Login
-        </button>
+       <Link
+  to="/dashboard"
+  className="block w-full bg-blue-600 text-white text-center rounded-xl py-4"
+>
+  Login
+</Link>
       </div>
     </div>
   );
