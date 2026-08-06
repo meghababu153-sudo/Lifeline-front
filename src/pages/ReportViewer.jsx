@@ -1,5 +1,6 @@
 import Sidebar from "../components/dashboard/Sidebar";
 import Topbar from "../components/dashboard/Topbar";
+import { useReport } from "../context/ReportContext";
 import {
   FileText,
   Sparkles,
@@ -9,59 +10,116 @@ import {
 } from "lucide-react";
 
 function ReportViewer() {
+  const { selectedReport } = useReport();
+
+  if (!selectedReport) {
+    return (
+      <div className="flex h-screen bg-slate-50">
+        <Sidebar />
+
+        <main className="flex-1 p-10 overflow-y-auto">
+          <Topbar />
+
+          <div className="bg-white rounded-3xl p-10 shadow-sm text-center">
+            <h2 className="text-3xl font-bold text-slate-800">
+              No Report Selected
+            </h2>
+
+            <p className="text-slate-500 mt-4">
+              Go back to Reports and choose a report to view.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  const isImage =
+    selectedReport.preview &&
+    (
+      selectedReport.name.endsWith(".png") ||
+      selectedReport.name.endsWith(".jpg") ||
+      selectedReport.name.endsWith(".jpeg")
+    );
+
+  const isPDF =
+    selectedReport.preview &&
+    selectedReport.name.endsWith(".pdf");
+
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex h-screen bg-slate-50">
       <Sidebar />
 
-      <main className="flex-1 p-10 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto p-10">
         <Topbar />
 
-        {/* Page Title */}
+        {/* Header */}
+
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-slate-900">
-            Complete Blood Count Report
+            {selectedReport.name}
           </h1>
 
           <p className="text-slate-500 mt-2">
-            Uploaded on 12 Jul 2026 • Blood Test
+            {selectedReport.date} • {selectedReport.category}
           </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
 
-          {/* Left Side */}
+          {/* LEFT PANEL */}
+
           <section className="bg-white rounded-3xl shadow-sm p-8">
 
             <div className="flex items-center gap-3 mb-6">
               <FileText className="text-blue-600" />
+
               <h2 className="text-2xl font-bold">
                 Report Preview
               </h2>
             </div>
 
-            <div className="h-[650px] border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center bg-slate-50">
+            <div className="rounded-2xl overflow-hidden border h-[650px] bg-slate-50 flex items-center justify-center">
 
-              <div className="text-center">
-
-                <FileText
-                  size={70}
-                  className="mx-auto text-slate-400 mb-4"
+              {isImage && (
+                <img
+                  src={selectedReport.preview}
+                  alt={selectedReport.name}
+                  className="w-full h-full object-contain"
                 />
+              )}
 
-                <p className="text-slate-500">
-                  PDF Preview will appear here.
-                </p>
+              {isPDF && (
+                <iframe
+                  src={selectedReport.preview}
+                  title="PDF Preview"
+                  className="w-full h-full"
+                />
+              )}
 
-              </div>
+              {!selectedReport.preview && (
+                <div className="text-center">
+
+                  <FileText
+                    size={80}
+                    className="mx-auto text-slate-300 mb-4"
+                  />
+
+                  <p className="text-slate-500">
+                    Preview unavailable
+                  </p>
+
+                </div>
+              )}
 
             </div>
 
           </section>
 
-          {/* Right Side */}
-          <div className="space-y-8">
+          {/* RIGHT PANEL */}
 
-            {/* AI Summary */}
+          <div className="space-y-8">
+                        {/* AI Summary */}
             <section className="bg-white rounded-3xl shadow-sm p-8">
 
               <div className="flex items-center gap-3 mb-5">
@@ -72,14 +130,17 @@ function ReportViewer() {
                 </h2>
               </div>
 
-              <div className="bg-blue-50 rounded-2xl p-5">
+              <div className="bg-blue-50 rounded-2xl p-5 space-y-3">
 
-                <p className="text-slate-700 leading-relaxed">
-                  Your blood test appears to be within the normal range.
-                  No significant abnormalities were detected.
-                  Continue routine health monitoring and discuss any concerns
-                  with your healthcare provider.
-                </p>
+                {selectedReport.summary &&
+                  selectedReport.summary.map((item, index) => (
+                    <div
+                      key={index}
+                      className="bg-white rounded-xl p-3 shadow-sm"
+                    >
+                      {item}
+                    </div>
+                  ))}
 
               </div>
 
@@ -105,7 +166,7 @@ function ReportViewer() {
 
                   <p className="text-slate-600 mt-2">
                     A protein in red blood cells that carries oxygen
-                    throughout your body.
+                    throughout the body.
                   </p>
                 </div>
 
@@ -115,7 +176,7 @@ function ReportViewer() {
                   </h3>
 
                   <p className="text-slate-600 mt-2">
-                    Cells that help your body fight infections.
+                    Cells that protect your body against infections.
                   </p>
                 </div>
 
@@ -134,10 +195,10 @@ function ReportViewer() {
                 </h2>
               </div>
 
-              <ul className="space-y-3 text-slate-700 list-disc pl-6">
+              <ul className="space-y-3 list-disc pl-6 text-slate-700">
 
                 <li>
-                  Are all my values within the expected range?
+                  Are these findings within the expected range?
                 </li>
 
                 <li>
@@ -145,7 +206,11 @@ function ReportViewer() {
                 </li>
 
                 <li>
-                  Are there lifestyle changes I should consider?
+                  Do I need any medication or lifestyle changes?
+                </li>
+
+                <li>
+                  Is any follow-up imaging or blood work required?
                 </li>
 
               </ul>
@@ -153,12 +218,11 @@ function ReportViewer() {
             </section>
 
             {/* Timeline Button */}
-            <button className="w-full bg-blue-600 text-white rounded-2xl py-4 font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 transition">
-
+            <button
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-4 font-semibold flex items-center justify-center gap-2 transition"
+            >
               <Calendar size={20} />
-
               Add to Medical Journey
-
             </button>
 
           </div>
