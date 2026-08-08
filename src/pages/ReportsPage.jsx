@@ -100,7 +100,7 @@ function ReportsPage() {
       category = "Prescription";
     }
 
-    let aiSummary = [];
+    let aiSummary;
 
     if (category === "Blood Test") {
       aiSummary = [

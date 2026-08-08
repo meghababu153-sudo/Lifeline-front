@@ -1,0 +1,146 @@
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { User, Eye, EyeOff, AlertCircle, Info } from "lucide-react";
+import { useAppData } from "../../context/AppDataContext";
+import { useAuth } from "../../context/AuthContext";
+
+function PatientLoginPage() {
+  const navigate = useNavigate();
+  const { authenticatePatient } = useAppData();
+  const { login } = useAuth();
+
+  const [patientId, setPatientId] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!patientId.trim() || !password.trim()) {
+      setError("Please enter both Patient ID and password.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    setTimeout(() => {
+      const patient = authenticatePatient(patientId.trim(), password);
+      if (patient) {
+        login({
+          id: patient.id,
+          role: "PATIENT",
+          name: patient.name,
+          displayId: patient.id,
+          bloodGroup: patient.bloodGroup,
+        });
+        navigate("/patient/dashboard");
+      } else {
+        setError("Invalid Patient ID or password. Please check your credentials.");
+        setIsLoading(false);
+      }
+    }, 600);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-slate-100 flex items-center justify-center px-6">
+      <div className="w-full max-w-md">
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <Link to="/" className="inline-block mb-4">
+            <h1 className="text-4xl font-bold text-blue-600">Lifeline</h1>
+          </Link>
+          <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-semibold mb-3">
+            <User size={16} />
+            Patient Portal
+          </div>
+          <p className="text-slate-600">Sign in with your Patient ID to access your medical records.</p>
+        </div>
+
+        {/* Card */}
+        <div className="bg-white shadow-xl rounded-3xl p-8">
+
+          {error && (
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl p-4 mb-6">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Patient ID</label>
+              <input
+                type="text"
+                value={patientId}
+                onChange={(e) => setPatientId(e.target.value)}
+                placeholder="PT-200001"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-green-600 text-white rounded-xl py-4 font-semibold hover:bg-green-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In to Patient Portal"
+              )}
+            </button>
+          </form>
+
+          {/* Demo hint */}
+          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 text-slate-600 text-sm font-semibold mb-2">
+              <Info size={14} />
+              Demo Credentials
+            </div>
+            <p className="text-xs text-slate-500 font-mono">PT-200001 / patient123</p>
+            <p className="text-xs text-slate-500 font-mono">PT-200002 / patient123</p>
+          </div>
+        </div>
+
+        <div className="text-center mt-6">
+          <p className="text-slate-500 text-sm">Are you a doctor?&nbsp;
+            <Link to="/doctor/login" className="text-blue-600 font-semibold hover:underline">
+              Doctor Portal
+            </Link>
+          </p>
+          <Link to="/" className="text-slate-400 text-xs hover:text-slate-600 mt-2 inline-block">← Back to Home</Link>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default PatientLoginPage;
