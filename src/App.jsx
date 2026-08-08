@@ -6,16 +6,33 @@ import Dashboard from "./pages/Dashboard";
 import ReportsPage from "./pages/ReportsPage";
 import ReportViewer from "./pages/ReportViewer";
 
+import { ReportProvider } from "./context/ReportContext";
+import MedicalJourney from "./pages/MedicalJourney";
+
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/report-viewer" element={<ReportViewer />} />
-      </Routes>
+      <ReportProvider>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+
+          <Route path="/login" element={<LoginPage />} />
+
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          <Route path="/reports" element={<ReportsPage />} />
+
+          <Route
+            path="/report-viewer"
+            element={<ReportViewer />}
+          />
+          <Route
+  path="/medical-journey"
+  element={<MedicalJourney />}
+/>
+          
+        </Routes>
+      </ReportProvider>
     </BrowserRouter>
   );
 }
