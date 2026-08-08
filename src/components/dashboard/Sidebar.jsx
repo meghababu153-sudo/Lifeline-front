@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+
+import { NavLink } from "react-router-dom";
 import {
   House,
   Clock3,
@@ -10,8 +11,46 @@ import {
 } from "lucide-react";
 
 function Sidebar() {
+  const navigationItems = [
+    {
+      name: "Overview",
+      path: "/dashboard",
+      icon: House,
+    },
+    {
+      name: "Medical Journey",
+      path: "/medical-journey",
+      icon: Clock3,
+    },
+    {
+      name: "Reports",
+      path: "/reports",
+      icon: FileText,
+    },
+    {
+      name: "Medications",
+      path: "/medications",
+      icon: Pill,
+    },
+    {
+      name: "Reminders",
+      path: "/reminders",
+      icon: Bell,
+    },
+    {
+      name: "Family Hub",
+      path: "/family",
+      icon: Users,
+    },
+    {
+      name: "Settings",
+      path: "/settings",
+      icon: Settings,
+    },
+  ];
+
   return (
-    <aside className="w-72 bg-white border-r p-8 flex flex-col">
+    <aside className="w-72 min-h-screen bg-white border-r border-slate-200 p-6 flex flex-col">
 
       {/* Logo */}
       <div className="mb-12">
@@ -26,48 +65,26 @@ function Sidebar() {
 
       {/* Navigation */}
       <nav className="space-y-2">
+        {navigationItems.map((item) => {
+          const Icon = item.icon;
 
-        <Link
-          to="/dashboard"
-          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl bg-blue-600 text-white font-medium"
-        >
-          <House size={20} />
-          Overview
-        </Link>
-
-        <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-100 transition">
-          <Clock3 size={20} />
-          Medical Journey
-        </button>
-
-        <Link
-          to="/reports"
-          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-100 transition"
-        >
-          <FileText size={20} />
-          Reports
-        </Link>
-
-        <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-100 transition">
-          <Pill size={20} />
-          Medications
-        </button>
-
-        <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-100 transition">
-          <Bell size={20} />
-          Reminders
-        </button>
-
-        <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-100 transition">
-          <Users size={20} />
-          Family Hub
-        </button>
-
-        <button className="flex items-center gap-3 w-full px-4 py-3 rounded-xl hover:bg-slate-100 transition">
-          <Settings size={20} />
-          Settings
-        </button>
-
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center gap-3 w-full px-4 py-3 rounded-xl font-medium transition ${
+                  isActive
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-700 hover:bg-slate-100"
+                }`
+              }
+            >
+              <Icon size={20} />
+              {item.name}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Footer Card */}
@@ -86,3 +103,4 @@ function Sidebar() {
 }
 
 export default Sidebar;
+

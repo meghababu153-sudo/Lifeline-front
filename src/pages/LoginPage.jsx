@@ -1,7 +1,5 @@
-import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 function LoginPage() {
-  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center px-6">

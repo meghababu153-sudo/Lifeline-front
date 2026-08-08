@@ -1,8 +1,16 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import Sidebar from "../components/dashboard/Sidebar";
 import Topbar from "../components/dashboard/Topbar";
-import { Upload, FileText, Eye, Sparkles } from "lucide-react";
+
+import {
+  Upload,
+  FileText,
+  Eye,
+  Sparkles,
+} from "lucide-react";
+
 import { useReport } from "../context/ReportContext";
 
 function ReportsPage() {
@@ -66,6 +74,7 @@ function ReportsPage() {
     setIsAnalyzing(true);
 
     let category = "General Report";
+
     const lowerName = file.name.toLowerCase();
 
     if (
@@ -91,7 +100,7 @@ function ReportsPage() {
       category = "Prescription";
     }
 
-    let aiSummary = [];
+    let aiSummary;
 
     if (category === "Blood Test") {
       aiSummary = [
@@ -163,14 +172,28 @@ function ReportsPage() {
     navigate("/report-viewer");
   };
 
-  return (
-    <div className="flex h-screen bg-slate-50">
-      <Sidebar />
+  const showAISummary = (report) => {
+    setSummary(report.summary || []);
+    setUploadedFile(report.name);
+    setIsAnalyzing(false);
+  };
 
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+
+      {/* SIDEBAR */}
+      <aside className="w-64 bg-white border-r border-slate-200 p-6 flex flex-col shrink-0">
+        <Sidebar />
+      </aside>
+
+      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto p-10">
+
         <Topbar />
 
+        {/* PAGE HEADER */}
         <div className="flex justify-between items-center mb-8">
+
           <div>
             <h1 className="text-4xl font-bold text-slate-900">
               Reports
@@ -181,7 +204,7 @@ function ReportsPage() {
             </p>
           </div>
 
-          <>
+          <div>
             <input
               ref={fileInputRef}
               type="file"
@@ -191,15 +214,17 @@ function ReportsPage() {
             />
 
             <button
-              onClick={() => fileInputRef.current.click()}
+              onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition"
             >
               <Upload size={20} />
               Upload Report
             </button>
-          </>
+          </div>
+
         </div>
 
+        {/* UPLOAD SUCCESS */}
         {uploadedFile && (
           <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-4">
             <h3 className="font-semibold text-green-700">
@@ -212,29 +237,35 @@ function ReportsPage() {
           </div>
         )}
 
+        {/* AI ANALYZING */}
         {uploadedFile && isAnalyzing && (
           <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
+
             <h3 className="font-semibold text-blue-700">
               🤖 Lifeline AI is analyzing your report...
             </h3>
 
             <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden mt-4">
-              <div className="h-3 w-3/4 bg-blue-600 rounded-full animate-pulse"></div>
+              <div className="h-3 w-3/4 bg-blue-600 rounded-full animate-pulse" />
             </div>
 
             <p className="text-sm text-slate-500 mt-3">
               Extracting medical terms • Creating summary • Updating timeline...
             </p>
+
           </div>
-        )} 
-                {/* AI Complete */}
+        )}
+
+        {/* AI COMPLETE */}
         {uploadedFile && !isAnalyzing && (
           <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 p-6">
+
             <h3 className="text-xl font-bold text-green-700 mb-5">
               🩺 AI Analysis Complete
             </h3>
 
             <div className="space-y-3">
+
               {summary.map((item, index) => (
                 <div
                   key={index}
@@ -243,30 +274,24 @@ function ReportsPage() {
                   {item}
                 </div>
               ))}
+
             </div>
 
-            <button
-  onClick={() => {
-    setSelectedReport(report);
-    navigate("/report-viewer");
-  }}
-  className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-xl hover:bg-slate-200 transition"
->
-  <Eye size={18} />
-  View
-</button>
           </div>
         )}
 
-        {/* Reports List */}
+        {/* REPORTS LIST */}
         <div className="space-y-6">
+
           {reports.map((report) => (
             <div
               key={report.id}
               className="bg-white rounded-3xl shadow-sm border p-6"
             >
+
               <div className="flex justify-between items-center">
 
+                {/* REPORT INFO */}
                 <div className="flex items-center gap-5">
 
                   <div className="bg-blue-100 p-4 rounded-2xl">
@@ -274,6 +299,7 @@ function ReportsPage() {
                   </div>
 
                   <div>
+
                     <h2 className="font-semibold text-xl">
                       {report.name}
                     </h2>
@@ -281,12 +307,15 @@ function ReportsPage() {
                     <p className="text-slate-500 mt-1">
                       {report.category} • {report.date}
                     </p>
+
                   </div>
 
                 </div>
 
+                {/* ACTIONS */}
                 <div className="flex items-center gap-4">
 
+                  {/* STATUS */}
                   <span
                     className={`px-4 py-2 rounded-full text-sm font-semibold ${
                       report.status === "Processing..."
@@ -299,6 +328,7 @@ function ReportsPage() {
                     {report.status}
                   </span>
 
+                  {/* VIEW */}
                   <button
                     onClick={() => openReport(report)}
                     className="flex items-center gap-2 bg-slate-100 px-4 py-2 rounded-xl hover:bg-slate-200 transition"
@@ -307,12 +337,9 @@ function ReportsPage() {
                     View
                   </button>
 
+                  {/* AI SUMMARY */}
                   <button
-                    onClick={() => {
-                      setSummary(report.summary || []);
-                      setUploadedFile(report.name);
-                      setIsAnalyzing(false);
-                    }}
+                    onClick={() => showAISummary(report)}
                     className="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-xl hover:bg-blue-200 transition"
                   >
                     <Sparkles size={18} />
@@ -322,8 +349,10 @@ function ReportsPage() {
                 </div>
 
               </div>
+
             </div>
           ))}
+
         </div>
 
       </main>
