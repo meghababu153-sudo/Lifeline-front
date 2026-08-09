@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Stethoscope, Eye, EyeOff, AlertCircle, Info } from "lucide-react";
+import { Stethoscope, Eye, EyeOff, AlertCircle, Info, Heart } from "lucide-react";
 import { useAppData } from "../../context/AppDataContext";
 import { useAuth } from "../../context/AuthContext";
 
@@ -51,8 +51,14 @@ function DoctorLoginPage() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-block mb-4">
-            <h1 className="text-4xl font-bold text-blue-600">Lifeline</h1>
+          <Link to="/" className="inline-flex flex-col items-center gap-2 mb-5">
+            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-md">
+              <Heart size={22} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 leading-none tracking-tight">LIFELINE</h1>
+              <p className="text-xs text-slate-500 leading-none mt-0.5">Caring for Life</p>
+            </div>
           </Link>
           <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold mb-3">
             <Stethoscope size={16} />

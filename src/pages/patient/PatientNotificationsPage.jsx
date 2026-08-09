@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import PatientLayout from "../../layouts/PatientLayout";
-import { Bell, FileText, ClipboardList, Pill, CalendarDays, ClipboardCheck, CheckCircle, AlertTriangle } from "lucide-react";
+import { Bell, FileText, ClipboardList, Pill, CalendarDays, ClipboardCheck, CheckCircle, AlertTriangle, KeyRound, Clock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 import { Link } from "react-router-dom";
@@ -13,6 +14,57 @@ const TYPE_META = {
   appointment:  { color: "bg-indigo-50 border-indigo-200", dot: "bg-indigo-500", icon: CalendarDays, label: "Appointment" },
   careplan:     { color: "bg-amber-50 border-amber-200", dot: "bg-amber-500", icon: ClipboardCheck, label: "Care Plan" },
 };
+
+// ── Live OTP banner shown to the patient when the doctor generates a code ─────
+function OTPBanner({ patientId }) {
+  const { otpStore } = useAppData();
+  const entry = otpStore[patientId];
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  // Keep a live countdown
+  useEffect(() => {
+    if (!entry || entry.used) return;
+    const update = () => {
+      const left = Math.max(0, Math.round((new Date(entry.expiresAt) - new Date()) / 1000));
+      setSecondsLeft(left);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [entry]);
+
+  if (!entry || entry.used || secondsLeft <= 0) return null;
+
+  const mm = Math.floor(secondsLeft / 60).toString().padStart(2, "0");
+  const ss = (secondsLeft % 60).toString().padStart(2, "0");
+
+  return (
+    <div className="bg-blue-600 text-white rounded-2xl p-5 mb-8 flex items-start gap-4">
+      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+        <KeyRound size={20} className="text-white" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-base">Your doctor has requested an upload OTP</p>
+        <p className="text-blue-100 text-sm mt-0.5">
+          Read this code back to your doctor so they can upload your report.
+          Do not share it with anyone else.
+        </p>
+        <div className="mt-3 flex items-center gap-4">
+          <span className="font-mono text-4xl font-bold tracking-[0.25em] bg-white/15 px-5 py-2 rounded-xl">
+            {entry.code}
+          </span>
+          <div className="text-sm">
+            <div className={`flex items-center gap-1 font-mono font-semibold ${secondsLeft < 60 ? "text-red-300" : "text-blue-200"}`}>
+              <Clock size={13} />
+              {mm}:{ss}
+            </div>
+            <p className="text-blue-300 text-xs mt-0.5">remaining</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PatientNotificationsPage() {
   const { currentUser } = useAuth();
@@ -106,6 +158,9 @@ function PatientNotificationsPage() {
             All recent activity across your Lifeline account.
           </p>
         </div>
+
+        {/* Live OTP banner — appears when a doctor-generated OTP is pending */}
+        <OTPBanner patientId={currentUser.id} />
 
         {notifications.length === 0 ? (
           <div className="bg-white border rounded-3xl p-12 text-center text-slate-400">

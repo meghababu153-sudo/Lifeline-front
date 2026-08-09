@@ -1,13 +1,21 @@
+import { useNavigate } from "react-router-dom";
 import DoctorLayout from "../../layouts/DoctorLayout";
-import { Bell } from "lucide-react";
+import { Bell, ChevronRight, CheckCircle, XCircle, Clock } from "lucide-react";
 import { useAppData } from "../../context/AppDataContext";
 import { useAuth } from "../../context/AuthContext";
 
 function DoctorNotificationsPage() {
   const { currentUser } = useAuth();
   const { accessRequests, findPatient } = useAppData();
+  const navigate = useNavigate();
 
-  const myRequests = accessRequests.filter((r) => r.doctorId === currentUser.id);
+  // Sort newest first (by responded-at time, falling back to requested-at)
+  const myRequests = [...accessRequests.filter((r) => r.doctorId === currentUser.id)]
+    .sort((a, b) => {
+      const aTime = a.approvedAt || a.requestedAt;
+      const bTime = b.approvedAt || b.requestedAt;
+      return new Date(bTime) - new Date(aTime);
+    });
 
   const notifications = myRequests.map((req) => {
     const patient = findPatient(req.patientId);
@@ -17,7 +25,9 @@ function DoctorNotificationsPage() {
         type: "success",
         title: "Access Request Approved",
         body: `${patient?.name || req.patientId} approved your request to view their medical records.`,
+        action: { label: "View Records", patientId: req.patientId },
         time: req.approvedAt,
+        expiresAt: req.expiresAt,
       };
     }
     if (req.status === "DENIED") {
@@ -26,7 +36,9 @@ function DoctorNotificationsPage() {
         type: "error",
         title: "Access Request Denied",
         body: `${patient?.name || req.patientId} denied your request to view their medical records.`,
+        action: null,
         time: req.approvedAt,
+        expiresAt: null,
       };
     }
     return {
@@ -34,19 +46,37 @@ function DoctorNotificationsPage() {
       type: "info",
       title: "Access Request Pending",
       body: `Your request to access ${patient?.name || req.patientId}'s records is awaiting approval.`,
+      action: null,
       time: req.requestedAt,
+      expiresAt: null,
     };
   });
 
-  const colorMap = {
-    success: "bg-green-50 border-green-200 text-green-700",
-    error: "bg-red-50 border-red-200 text-red-700",
-    info: "bg-blue-50 border-blue-200 text-blue-700",
+  const styleMap = {
+    success: {
+      card:  "bg-green-50 border-green-200",
+      title: "text-green-900",
+      body:  "text-green-700",
+      meta:  "text-green-600",
+    },
+    error: {
+      card:  "bg-red-50 border-red-200",
+      title: "text-red-900",
+      body:  "text-red-700",
+      meta:  "text-red-500",
+    },
+    info: {
+      card:  "bg-blue-50 border-blue-200",
+      title: "text-blue-900",
+      body:  "text-blue-700",
+      meta:  "text-blue-500",
+    },
   };
-  const dotMap = {
-    success: "bg-green-500",
-    error: "bg-red-500",
-    info: "bg-blue-500",
+
+  const iconMap = {
+    success: <CheckCircle size={18} className="text-green-600 shrink-0 mt-0.5" />,
+    error:   <XCircle    size={18} className="text-red-500   shrink-0 mt-0.5" />,
+    info:    <Clock      size={18} className="text-blue-400  shrink-0 mt-0.5" />,
   };
 
   return (
@@ -64,20 +94,59 @@ function DoctorNotificationsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {notifications.map((n) => (
-              <div key={n.id} className={`flex items-start gap-4 border rounded-2xl p-5 ${colorMap[n.type]}`}>
-                <div className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${dotMap[n.type]}`} />
-                <div className="flex-1">
-                  <p className="font-semibold">{n.title}</p>
-                  <p className="text-sm mt-0.5 opacity-80">{n.body}</p>
+            {notifications.map((n) => {
+              const s = styleMap[n.type];
+              return (
+                <div key={n.id} className={`border rounded-2xl p-5 ${s.card}`}>
+                  <div className="flex items-start gap-3">
+                    {iconMap[n.type]}
+                    <div className="flex-1 min-w-0">
+
+                      {/* Title + timestamp */}
+                      <div className="flex items-start justify-between gap-4">
+                        <p className={`font-bold text-sm ${s.title}`}>{n.title}</p>
+                        {n.time && (
+                          <p className={`text-xs shrink-0 whitespace-nowrap ${s.meta}`}>
+                            {new Date(n.time).toLocaleDateString("en-IN", {
+                              day: "numeric", month: "short", year: "numeric",
+                            })}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Body */}
+                      <p className={`text-sm mt-1 ${s.body}`}>{n.body}</p>
+
+                      {/* Expiry line */}
+                      {n.expiresAt && (
+                        <p className={`text-xs mt-1.5 ${s.meta}`}>
+                          Access expires{" "}
+                          {new Date(n.expiresAt).toLocaleDateString("en-IN", {
+                            day: "numeric", month: "short", year: "numeric",
+                          })}
+                        </p>
+                      )}
+
+                      {/* View Records action */}
+                      {n.action && (
+                        <button
+                          onClick={() =>
+                            navigate("/doctor/patients", {
+                              state: { autoSelectPatientId: n.action.patientId },
+                            })
+                          }
+                          className="mt-3 inline-flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition"
+                        >
+                          {n.action.label}
+                          <ChevronRight size={14} />
+                        </button>
+                      )}
+
+                    </div>
+                  </div>
                 </div>
-                {n.time && (
-                  <p className="text-xs opacity-60 shrink-0 whitespace-nowrap">
-                    {new Date(n.time).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                  </p>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

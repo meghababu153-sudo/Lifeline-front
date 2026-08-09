@@ -3,7 +3,7 @@ import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
 import {
   FileText, ClipboardList, Activity, Pill, FlaskConical, CalendarDays,
-  ClipboardCheck, AlertOctagon, Sparkles, Clipboard, ShieldAlert, ChevronRight,
+  ClipboardCheck, Sparkles, Clipboard, ShieldAlert, ChevronRight,
   Bell, CheckCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -93,9 +93,9 @@ function PatientDashboard() {
         </div>
 
         {/* Security notice */}
-        <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-2xl p-4 mb-8">
-          <ShieldAlert size={18} className="text-green-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-green-700">
+        <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-8">
+          <ShieldAlert size={18} className="text-blue-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-700">
             <strong>Your records are secure.</strong>{" "}
             All reports are uploaded exclusively by verified doctors — you own the information, they contribute it.
           </p>
@@ -144,18 +144,20 @@ function PatientDashboard() {
             ) : (
               <div className="space-y-3">
                 {recentReports.map((r) => (
-                  <div key={r.reportId} className="flex items-center gap-4 p-4 border rounded-xl hover:bg-slate-50 transition">
-                    <div className="bg-blue-100 p-2.5 rounded-xl shrink-0">
-                      <FileText size={15} className="text-blue-600" />
+                  <Link key={r.reportId} to="/patient/reports">
+                    <div className="flex items-center gap-4 p-4 border rounded-xl hover:bg-slate-50 transition">
+                      <div className="bg-blue-100 p-2.5 rounded-xl shrink-0">
+                        <FileText size={15} className="text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-800 text-sm truncate">{r.fileName.replace(/_/g, " ")}</p>
+                        <p className="text-xs text-slate-500">{r.reportType} · {r.uploaderName}</p>
+                      </div>
+                      <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">
+                        {r.status}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-800 text-sm truncate">{r.fileName.replace(/_/g, " ")}</p>
-                      <p className="text-xs text-slate-500">{r.reportType} · {r.uploaderName}</p>
-                    </div>
-                    <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">
-                      {r.status}
-                    </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -196,9 +198,9 @@ function PatientDashboard() {
 
         </div>
 
-        {/* Health Intelligence features grid */}
+        {/* Health features grid */}
         <div className="mb-6">
-          <h2 className="text-xl font-bold text-slate-800 mb-4">Your Health Intelligence Platform</h2>
+          <h2 className="text-xl font-bold text-slate-800 mb-4">Your Health on Lifeline</h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <FeatureCard
               icon={Sparkles} title="Vitalis AI Assistant"
@@ -236,14 +238,14 @@ function PatientDashboard() {
               color="bg-rose-100 text-rose-600" to="/patient/appointments"
             />
             <FeatureCard
-              icon={AlertOctagon} title="Emergency Profile"
-              description="Allergies, blood group, emergency contacts — critical info in one place."
-              color="bg-red-100 text-red-600" to="/patient/emergency"
+              icon={FileText} title="All Reports"
+              description={`${reports.length} verified report${reports.length !== 1 ? "s" : ""} from your doctors — view originals.`}
+              color="bg-teal-100 text-teal-600" to="/patient/reports"
             />
             <FeatureCard
-              icon={FileText} title="All Reports"
-              description={`${reports.length} verified report${reports.length !== 1 ? "s" : ""} from your doctors.`}
-              color="bg-teal-100 text-teal-600" to="/patient/reports"
+              icon={Bell} title="Notifications"
+              description="Stay updated on new reports, access requests, and reminders."
+              color="bg-amber-100 text-amber-600" to="/patient/notifications"
             />
           </div>
         </div>

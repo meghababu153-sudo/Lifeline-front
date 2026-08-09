@@ -748,7 +748,7 @@ export function AppDataProvider({ children }) {
       // Auth
       authenticateDoctor, authenticatePatient,
       // OTP
-      generateOTP, verifyOTP,
+      generateOTP, verifyOTP, otpStore,
       // Reports
       uploadReport, getPatientReports, getDoctorAccessibleReports,
       // Derived health data

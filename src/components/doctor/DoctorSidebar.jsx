@@ -9,7 +9,7 @@ import {
   Activity,
   UserCircle,
   LogOut,
-  Stethoscope,
+  Heart,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -38,13 +38,15 @@ function DoctorSidebar() {
 
       {/* Logo */}
       <div className="mb-10">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
-            <Stethoscope size={18} className="text-white" />
+            <Heart size={17} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-blue-600">Lifeline</h1>
+          <div>
+            <h1 className="text-base font-bold text-slate-900 leading-none tracking-tight">LIFELINE</h1>
+            <p className="text-xs text-slate-400 mt-0.5">Caring for Life</p>
+          </div>
         </div>
-        <p className="text-xs text-slate-500 ml-11">Doctor Portal</p>
       </div>
 
       {/* Doctor info chip */}

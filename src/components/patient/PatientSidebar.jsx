@@ -1,8 +1,8 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, FileText, ClipboardList, Bell, BookOpen, UserCircle,
-  LogOut, User, Activity, Pill, FlaskConical, CalendarDays, AlertOctagon,
-  ClipboardCheck, Clipboard, Sparkles,
+  LayoutDashboard, FileText, ClipboardList, Bell,
+  LogOut, Heart, Activity, Pill, FlaskConical, CalendarDays,
+  ClipboardCheck, Clipboard, Sparkles, UserCircle,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -33,7 +33,6 @@ function PatientSidebar() {
       items: [
         { name: "Care Plan", path: "/patient/care-plan", icon: ClipboardCheck },
         { name: "Appointments", path: "/patient/appointments", icon: CalendarDays },
-        { name: "Emergency Profile", path: "/patient/emergency", icon: AlertOctagon },
       ],
     },
     {
@@ -41,7 +40,6 @@ function PatientSidebar() {
       items: [
         { name: "Access Requests", path: "/patient/access-requests", icon: ClipboardList },
         { name: "Notifications", path: "/patient/notifications", icon: Bell },
-        { name: "Patient Guide", path: "/patient/guide", icon: BookOpen },
         { name: "Profile", path: "/patient/profile", icon: UserCircle },
       ],
     },
@@ -57,22 +55,22 @@ function PatientSidebar() {
 
       {/* Logo */}
       <div className="p-6 pb-4 border-b border-slate-100">
-        <div className="flex items-center gap-2 mb-0.5">
-          <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center">
-            <User size={18} className="text-white" />
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center">
+            <Heart size={17} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-blue-600 leading-none">Lifeline</h1>
-            <p className="text-xs text-slate-400">Patient Portal</p>
+            <h1 className="text-base font-bold text-slate-900 leading-none tracking-tight">LIFELINE</h1>
+            <p className="text-xs text-slate-400 mt-0.5">Caring for Life</p>
           </div>
         </div>
       </div>
 
       {/* Patient chip */}
       {currentUser && (
-        <div className="mx-4 mt-4 bg-green-50 border border-green-100 rounded-xl p-3 mb-2">
+        <div className="mx-4 mt-4 bg-blue-50 border border-blue-100 rounded-xl p-3 mb-2">
           <p className="font-semibold text-slate-800 text-sm leading-snug">{currentUser.name}</p>
-          <p className="text-xs text-green-600 font-mono mt-0.5">{currentUser.displayId}</p>
+          <p className="text-xs text-blue-600 font-mono mt-0.5">{currentUser.displayId}</p>
         </div>
       )}
 
@@ -93,7 +91,7 @@ function PatientSidebar() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 w-full px-3 py-2.5 rounded-xl font-medium transition text-sm ${
                         isActive
-                          ? "bg-green-600 text-white shadow-sm"
+                          ? "bg-blue-600 text-white shadow-sm"
                           : "text-slate-700 hover:bg-slate-100"
                       }`
                     }
@@ -109,9 +107,9 @@ function PatientSidebar() {
       </nav>
 
       {/* Security note */}
-      <div className="mx-4 mb-3 bg-green-50 border border-green-100 rounded-xl p-3">
+      <div className="mx-4 mb-3 bg-slate-50 border border-slate-100 rounded-xl p-3">
         <p className="text-xs text-slate-500">
-          <span className="font-semibold text-green-700">Secure.</span>{" "}
+          <span className="font-semibold text-blue-600">Secure.</span>{" "}
           Reports are uploaded only by verified doctors.
         </p>
       </div>

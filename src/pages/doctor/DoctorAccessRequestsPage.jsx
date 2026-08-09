@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppData } from "../../context/AppDataContext";
 import { useAuth } from "../../context/AuthContext";
 import DoctorLayout from "../../layouts/DoctorLayout";
-import { ClipboardList, CheckCircle, XCircle, Clock } from "lucide-react";
+import { ClipboardList, CheckCircle, XCircle, Clock, ChevronRight } from "lucide-react";
 
 // ─── Sub-form ────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ function NewRequestForm({ currentUser, patients, myRequests, createAccessRequest
 
 function DoctorAccessRequestsPage() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const {
     getAccessRequestsForDoctor,
     findPatient,
@@ -147,7 +149,7 @@ function DoctorAccessRequestsPage() {
                         </p>
                       )}
                     </div>
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 text-right flex flex-col items-end gap-2">
                       <span
                         className={`text-xs font-semibold px-4 py-2 rounded-full ${getStatusBadge(req.status)}`}
                       >
@@ -155,10 +157,23 @@ function DoctorAccessRequestsPage() {
                         {req.status}
                       </span>
                       {req.expiresAt && req.status === "APPROVED" && (
-                        <p className="text-xs text-slate-400 mt-1.5">
+                        <p className="text-xs text-slate-400">
                           Expires:{" "}
                           {new Date(req.expiresAt).toLocaleDateString("en-IN")}
                         </p>
+                      )}
+                      {req.status === "APPROVED" && (
+                        <button
+                          onClick={() =>
+                            navigate("/doctor/patients", {
+                              state: { autoSelectPatientId: req.patientId },
+                            })
+                          }
+                          className="inline-flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                        >
+                          View Records
+                          <ChevronRight size={12} />
+                        </button>
                       )}
                     </div>
                   </div>
