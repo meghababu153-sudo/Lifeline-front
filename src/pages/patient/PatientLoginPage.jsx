@@ -135,7 +135,13 @@ function PatientLoginPage() {
           </div>
         </div>
 
-        <div className="text-center mt-6">
+        <div className="text-center mt-6 space-y-2">
+          <p className="text-slate-500 text-sm">
+            New to Lifeline?&nbsp;
+            <Link to="/patient/register" className="text-green-700 font-semibold hover:underline">
+              Create a Patient Account
+            </Link>
+          </p>
           <p className="text-slate-500 text-sm">Are you a doctor?&nbsp;
             <Link to="/doctor/login" className="text-blue-600 font-semibold hover:underline">
               Doctor Portal

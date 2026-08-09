@@ -4,8 +4,23 @@ import { useAuth } from "../../context/AuthContext";
 import DoctorLayout from "../../layouts/DoctorLayout";
 import {
   FileText, User, Calendar, FileSearch, ChevronDown, ChevronUp,
-  X, Sparkles, ShieldCheck, ZoomIn, ZoomOut, Download,
+  X, Sparkles, ShieldCheck, ZoomIn, ZoomOut, Download, Clock, AlertTriangle,
 } from "lucide-react";
+
+// Returns { daysLeft, isExpired, label, color } for an approved-access report.
+// Own uploads return null (no expiry).
+function getExpiryInfo(expiresAt) {
+  if (!expiresAt) return null;
+  const msLeft = new Date(expiresAt) - Date.now();
+  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+  if (daysLeft <= 0) {
+    return { daysLeft: 0, isExpired: true, label: "Access Expired", color: "bg-red-100 text-red-700 border-red-200" };
+  }
+  if (daysLeft <= 2) {
+    return { daysLeft, isExpired: false, label: `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`, color: "bg-orange-100 text-orange-700 border-orange-200" };
+  }
+  return { daysLeft, isExpired: false, label: `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`, color: "bg-yellow-50 text-yellow-700 border-yellow-200" };
+}
 
 // ── Reusable Report Viewer Modal (same pattern as patient side) ────────────────
 function ReportViewerModal({ report, patient, onClose }) {
@@ -18,6 +33,8 @@ function ReportViewerModal({ report, patient, onClose }) {
     report.fileName?.toLowerCase().endsWith(".png");
 
   const fileUrl = report.fileRef || null;
+
+  const expiry = getExpiryInfo(report._expiresAt);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex flex-col" onClick={onClose}>
@@ -51,6 +68,16 @@ function ReportViewerModal({ report, patient, onClose }) {
             <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition"><X size={18} /></button>
           </div>
         </div>
+
+        {/* Expiry warning banner inside viewer */}
+        {expiry && (
+          <div className={`flex items-center gap-3 px-6 py-2.5 border-b text-sm font-medium ${expiry.isExpired ? "bg-red-900/80 border-red-700 text-red-100" : "bg-yellow-900/60 border-yellow-700 text-yellow-100"}`}>
+            <AlertTriangle size={15} className="shrink-0" />
+            {expiry.isExpired
+              ? "Your approved access to this report has expired. The patient would need to re-approve."
+              : `Approved access ${expiry.label.toLowerCase()} — the patient's authorisation will end soon.`}
+          </div>
+        )}
 
         {/* Document area */}
         <div className="flex-1 overflow-auto bg-slate-800 p-6">
@@ -235,9 +262,17 @@ function DoctorRecordsPage() {
     (req) => req.doctorId === currentUser.id && req.status === "APPROVED"
   );
 
-  const accessibleFromApproval = reports.filter((r) =>
-    approvedAccess.some((req) => req.patientId === r.patientId)
-  ).filter((r) => !ownReports.some((own) => own.reportId === r.reportId));
+  // Attach the matching access request's expiresAt onto each approved-access report
+  // so the record card and modal can display expiry info.
+  const accessibleFromApproval = reports
+    .filter((r) =>
+      approvedAccess.some((req) => req.patientId === r.patientId)
+    )
+    .filter((r) => !ownReports.some((own) => own.reportId === r.reportId))
+    .map((r) => {
+      const req = approvedAccess.find((req) => req.patientId === r.patientId);
+      return { ...r, _expiresAt: req?.expiresAt ?? null };
+    });
 
   const allAccessible = [...ownReports, ...accessibleFromApproval];
 
@@ -288,11 +323,19 @@ function DoctorRecordsPage() {
                       <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full">
                         {r.status}
                       </span>
-                      {r.uploadedBy !== currentUser.id && (
-                        <span className="bg-purple-100 text-purple-600 text-xs font-semibold px-3 py-1 rounded-full">
-                          Approved Access
-                        </span>
-                      )}
+                      {r.uploadedBy !== currentUser.id && (() => {
+                        const expiry = getExpiryInfo(r._expiresAt);
+                        return expiry ? (
+                          <span className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full border ${expiry.color}`}>
+                            <Clock size={11} />
+                            {expiry.label}
+                          </span>
+                        ) : (
+                          <span className="bg-purple-100 text-purple-600 text-xs font-semibold px-3 py-1 rounded-full">
+                            Approved Access
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
 

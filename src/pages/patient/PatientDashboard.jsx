@@ -4,9 +4,10 @@ import PatientLayout from "../../layouts/PatientLayout";
 import {
   FileText, ClipboardList, Activity, Pill, FlaskConical, CalendarDays,
   ClipboardCheck, Sparkles, Clipboard, ShieldAlert, ChevronRight,
-  Bell, CheckCircle,
+  Bell, CheckCircle, AlertOctagon, Users, TrendingUp, TrendingDown, Minus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import LabSparkline from "../../components/patient/LabSparkline";
 
 function QuickCard({ icon: Icon, title, value, subtitle, color, to }) {
   return (
@@ -123,6 +124,59 @@ function PatientDashboard() {
             to="/patient/access-requests"
           />
         </div>
+
+        {/* Lab Trends Widget */}
+        {labCount > 0 && (
+          <section className="bg-white border rounded-2xl p-6 shadow-sm mb-8">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <FlaskConical size={17} className="text-cyan-600" /> Lab Progress
+              </h2>
+              <Link to="/patient/labs" className="text-blue-600 text-xs font-semibold hover:underline">
+                View All Biomarkers →
+              </Link>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(() => {
+                const allMarkers = Object.keys(labs);
+                // Abnormal markers first, then normal — show up to 3
+                const abnormal = allMarkers.filter((m) => labs[m][labs[m].length - 1]?.normal === false);
+                const normal = allMarkers.filter((m) => labs[m][labs[m].length - 1]?.normal !== false);
+                const toShow = [...abnormal, ...normal].slice(0, 3);
+                return toShow.map((name) => {
+                  const values = labs[name];
+                  const latest = values[values.length - 1];
+                  const isNormal = latest.normal !== false;
+                  const len = values.length;
+                  const prev = len >= 2 ? parseFloat(values[len - 2].value) : null;
+                  const curr = parseFloat(latest.value);
+                  const TrendIcon = prev === null ? Minus : curr > prev ? TrendingUp : curr < prev ? TrendingDown : Minus;
+                  const trendColor = prev === null ? "text-slate-400" : curr > prev ? "text-red-500" : curr < prev ? "text-green-500" : "text-slate-400";
+                  return (
+                    <Link key={name} to="/patient/labs">
+                      <div className="border rounded-xl p-4 hover:bg-slate-50 transition cursor-pointer">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-slate-700 truncate">{name}</span>
+                          <TrendIcon size={13} className={trendColor} />
+                        </div>
+                        <div className="flex items-end justify-between mb-2">
+                          <span className={`text-xl font-bold ${isNormal ? "text-green-700" : "text-red-600"}`}>
+                            {latest.value}
+                            <span className="text-xs font-normal text-slate-400 ml-1">{latest.unit}</span>
+                          </span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${isNormal ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                            {isNormal ? "Normal" : "Attention"}
+                          </span>
+                        </div>
+                        <LabSparkline values={values} normal={isNormal} width={140} height={40} />
+                      </div>
+                    </Link>
+                  );
+                });
+              })()}
+            </div>
+          </section>
+        )}
 
         <div className="grid xl:grid-cols-3 gap-6 mb-8">
 
@@ -246,6 +300,11 @@ function PatientDashboard() {
               icon={Bell} title="Notifications"
               description="Stay updated on new reports, access requests, and reminders."
               color="bg-amber-100 text-amber-600" to="/patient/notifications"
+            />
+            <FeatureCard
+              icon={AlertOctagon} title="Emergency Profile & Family Group"
+              description="Your critical health info, allergies, conditions, and emergency contacts — ready when it matters."
+              color="bg-red-100 text-red-600" to="/patient/emergency"
             />
           </div>
         </div>

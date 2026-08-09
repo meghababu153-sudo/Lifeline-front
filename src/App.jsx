@@ -13,6 +13,7 @@ import LandingPage from "./pages/LandingPage";
 
 // Doctor Portal
 import DoctorLoginPage from "./pages/doctor/DoctorLoginPage";
+import DoctorRegisterPage from "./pages/doctor/DoctorRegisterPage";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import PatientSearchPage from "./pages/doctor/PatientSearchPage";
 import UploadReportPage from "./pages/doctor/UploadReportPage";
@@ -24,6 +25,7 @@ import DoctorProfilePage from "./pages/doctor/DoctorProfilePage";
 
 // Patient Portal
 import PatientLoginPage from "./pages/patient/PatientLoginPage";
+import PatientRegisterPage from "./pages/patient/PatientRegisterPage";
 import PatientDashboard from "./pages/patient/PatientDashboard";
 import PatientReportsPage from "./pages/patient/PatientReportsPage";
 import PatientAccessRequestsPage from "./pages/patient/PatientAccessRequestsPage";
@@ -80,6 +82,7 @@ function AppRoutes() {
 
         {/* ── Doctor Portal ─────────────────────────────────────── */}
         <Route path="/doctor/login" element={<DoctorLoginPage />} />
+        <Route path="/doctor/register" element={<DoctorRegisterPage />} />
         {doctorRoute("/doctor/dashboard", DoctorDashboard)}
         {doctorRoute("/doctor/patients", PatientSearchPage)}
         {doctorRoute("/doctor/upload", UploadReportPage)}
@@ -91,6 +94,7 @@ function AppRoutes() {
 
         {/* ── Patient Portal ────────────────────────────────────── */}
         <Route path="/patient/login" element={<PatientLoginPage />} />
+        <Route path="/patient/register" element={<PatientRegisterPage />} />
         {patientRoute("/patient/dashboard", PatientDashboard)}
         {patientRoute("/patient/reports", PatientReportsPage)}
         {patientRoute("/patient/access-requests", PatientAccessRequestsPage)}

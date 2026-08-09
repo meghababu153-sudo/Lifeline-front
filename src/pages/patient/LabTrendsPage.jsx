@@ -3,6 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
 import { TrendingUp, TrendingDown, Minus, FlaskConical, Info } from "lucide-react";
+import LabSparkline from "../../components/patient/LabSparkline";
 
 // Reference ranges (display only — not for diagnosis)
 const REFERENCE_RANGES = {
@@ -27,38 +28,6 @@ function TrendIndicator({ values }) {
   return <Minus size={14} className="text-slate-400" />;
 }
 
-// Simple SVG sparkline
-function Sparkline({ values, normal }) {
-  if (values.length < 2) return null;
-  const nums = values.map((v) => parseFloat(v.value));
-  const min = Math.min(...nums);
-  const max = Math.max(...nums);
-  const range = max - min || 1;
-  const w = 160, h = 48, pad = 6;
-  const points = nums.map((n, i) => {
-    const x = pad + (i / (nums.length - 1)) * (w - pad * 2);
-    const y = pad + ((max - n) / range) * (h - pad * 2);
-    return `${x},${y}`;
-  }).join(" ");
-
-  return (
-    <svg width={w} height={h} className="overflow-visible">
-      <polyline
-        points={points}
-        fill="none"
-        stroke={normal ? "#22c55e" : "#ef4444"}
-        strokeWidth="2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
-      {nums.map((n, i) => {
-        const x = pad + (i / (nums.length - 1)) * (w - pad * 2);
-        const y = pad + ((max - n) / range) * (h - pad * 2);
-        return <circle key={i} cx={x} cy={y} r="3" fill={normal ? "#22c55e" : "#ef4444"} />;
-      })}
-    </svg>
-  );
-}
 
 function LabCard({ name, values }) {
   const ref = REFERENCE_RANGES[name];
@@ -96,7 +65,7 @@ function LabCard({ name, values }) {
       {/* Sparkline */}
       {values.length >= 2 && (
         <div className="mb-4">
-          <Sparkline values={values} normal={isNormal} />
+          <LabSparkline values={values} normal={isNormal} />
         </div>
       )}
 

@@ -408,14 +408,25 @@ const INITIAL_ACCESS_REQUESTS = [
 // ─── Vitalis conversation history (per patient) ───────────────────────────────
 const INITIAL_VITALIS = {};
 
+// ─── Mock Medical Registration Registry ───────────────────────────────────────
+// Doctors must supply one of these numbers during sign-up to verify they are
+// licensed practitioners. In production this would be a backend API call.
+export const MOCK_MEDICAL_REGISTRY = [
+  { regNo: "MED-REG-001", name: "Pre-registered slot 1" },
+  { regNo: "MED-REG-002", name: "Pre-registered slot 2" },
+  { regNo: "MED-REG-003", name: "Pre-registered slot 3" },
+  { regNo: "MED-REG-004", name: "Pre-registered slot 4" },
+  { regNo: "MED-REG-005", name: "Pre-registered slot 5" },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function nowISO() { return new Date().toISOString(); }
 function makeId(prefix) { return `${prefix}-${Date.now().toString().slice(-6)}`; }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AppDataProvider({ children }) {
-  const [doctors] = useState(MOCK_DOCTORS);
-  const [patients] = useState(MOCK_PATIENTS);
+  const [doctors, setDoctors] = useState(MOCK_DOCTORS);
+  const [patients, setPatients] = useState(MOCK_PATIENTS);
   const [reports, setReports] = useState(INITIAL_REPORTS);
   const [appointments, setAppointments] = useState(INITIAL_APPOINTMENTS);
   const [carePlan, setCarePlan] = useState(INITIAL_CARE_PLAN);
@@ -433,6 +444,46 @@ export function AppDataProvider({ children }) {
     (id, password) => patients.find((p) => p.id === id && p.password === password) || null,
     [patients]
   );
+
+  // ── Registration ─────────────────────────────────────────────────────────────
+  const registerPatient = useCallback(({ name, email, phone, password }) => {
+    const id = `PT-${(200003 + Math.floor(Math.random() * 9000)).toString()}`;
+    const newPatient = {
+      id,
+      name,
+      email,
+      phone,
+      password,
+      dob: null,
+      bloodGroup: null,
+      specialCode: `SC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+      otpSecret: Math.floor(100000 + Math.random() * 900000).toString(),
+      emergencyProfile: { allergies: [], conditions: [], emergencyContacts: [] },
+    };
+    setPatients((prev) => [...prev, newPatient]);
+    return newPatient;
+  }, []);
+
+  const registerDoctor = useCallback(({ name, email, phone, specialization, medRegNo, password }) => {
+    const isValid = MOCK_MEDICAL_REGISTRY.some(
+      (entry) => entry.regNo.trim().toUpperCase() === medRegNo.trim().toUpperCase()
+    );
+    if (!isValid) return { success: false, reason: "Medical registration number not found in our registry." };
+    const alreadyClaimed = doctors.some((d) => d.medRegNo === medRegNo.trim().toUpperCase());
+    if (alreadyClaimed) return { success: false, reason: "This registration number is already linked to an account." };
+    const id = `DR-${(100004 + Math.floor(Math.random() * 9000)).toString()}`;
+    const newDoctor = {
+      id,
+      name,
+      email,
+      phone,
+      specialization,
+      medRegNo: medRegNo.trim().toUpperCase(),
+      password,
+    };
+    setDoctors((prev) => [...prev, newDoctor]);
+    return { success: true, doctor: newDoctor };
+  }, [doctors]);
 
   // ── OTP ──────────────────────────────────────────────────────────────────────
   const generateOTP = useCallback((patientId) => {
@@ -747,6 +798,8 @@ export function AppDataProvider({ children }) {
       doctors, patients, reports, appointments, carePlan, accessRequests, auditLogs,
       // Auth
       authenticateDoctor, authenticatePatient,
+      // Registration
+      registerPatient, registerDoctor,
       // OTP
       generateOTP, verifyOTP, otpStore,
       // Reports
