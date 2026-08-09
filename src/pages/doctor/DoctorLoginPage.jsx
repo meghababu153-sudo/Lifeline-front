@@ -1,48 +1,39 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Stethoscope, Eye, EyeOff, AlertCircle, Info, Heart } from "lucide-react";
-import { useAppData } from "../../context/AppDataContext";
+import { Stethoscope, Eye, EyeOff, AlertCircle, Heart } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { loginDoctor, getMe } from "../../api/auth.js";
 
 function DoctorLoginPage() {
   const navigate = useNavigate();
-  const { authenticateDoctor } = useAppData();
   const { login } = useAuth();
 
-  const [doctorId, setDoctorId] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!doctorId.trim() || !password.trim()) {
-      setError("Please enter both Doctor ID and password.");
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and password.");
       return;
     }
 
     setIsLoading(true);
-
-    // Simulate brief network delay
-    setTimeout(() => {
-      const doctor = authenticateDoctor(doctorId.trim(), password);
-      if (doctor) {
-        login({
-          id: doctor.id,
-          role: "DOCTOR",
-          name: doctor.name,
-          displayId: doctor.id,
-          specialization: doctor.specialization,
-        });
-        navigate("/doctor/dashboard");
-      } else {
-        setError("Invalid Doctor ID or password. Please check your credentials.");
-        setIsLoading(false);
-      }
-    }, 600);
+    try {
+      const { access_token } = await loginDoctor(email.trim(), password);
+      const user = await getMe();
+      login(access_token, user);
+      navigate("/doctor/dashboard");
+    } catch (err) {
+      setError(err.message || "Invalid email or password. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,7 +55,7 @@ function DoctorLoginPage() {
             <Stethoscope size={16} />
             Doctor Portal
           </div>
-          <p className="text-slate-600">Sign in with your Doctor ID to access the medical portal.</p>
+          <p className="text-slate-600">Sign in with your email to access the medical portal.</p>
         </div>
 
         {/* Card */}
@@ -79,13 +70,14 @@ function DoctorLoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Doctor ID</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Email</label>
               <input
-                type="text"
-                value={doctorId}
-                onChange={(e) => setDoctorId(e.target.value)}
-                placeholder="DR-100001"
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="doctor@hospital.com"
+                autoComplete="email"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -97,6 +89,7 @@ function DoctorLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  autoComplete="current-password"
                   className="w-full border border-slate-300 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
@@ -124,16 +117,6 @@ function DoctorLoginPage() {
               )}
             </button>
           </form>
-
-          {/* Demo hint */}
-          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 text-slate-600 text-sm font-semibold mb-2">
-              <Info size={14} />
-              Demo Credentials
-            </div>
-            <p className="text-xs text-slate-500 font-mono">DR-100001 / doctor123</p>
-            <p className="text-xs text-slate-500 font-mono">DR-100002 / doctor123</p>
-          </div>
         </div>
 
         <div className="text-center mt-6 space-y-2">

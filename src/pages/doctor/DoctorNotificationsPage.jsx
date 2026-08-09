@@ -1,76 +1,75 @@
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import DoctorLayout from "../../layouts/DoctorLayout";
-import { Bell, ChevronRight, CheckCircle, XCircle, Clock } from "lucide-react";
-import { useAppData } from "../../context/AppDataContext";
+import { Bell, ChevronRight, CheckCircle, XCircle, Clock, Loader } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { getMyAccess } from "../../api/consent.js";
 
 function DoctorNotificationsPage() {
   const { currentUser } = useAuth();
-  const { accessRequests, findPatient } = useAppData();
   const navigate = useNavigate();
+  const [myRequests, setMyRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sort newest first (by responded-at time, falling back to requested-at)
-  const myRequests = [...accessRequests.filter((r) => r.doctorId === currentUser.id)]
-    .sort((a, b) => {
-      const aTime = a.approvedAt || a.requestedAt;
-      const bTime = b.approvedAt || b.requestedAt;
-      return new Date(bTime) - new Date(aTime);
-    });
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getMyAccess();
+      // Sort newest first (by responded_at, falling back to requested_at)
+      const sorted = [...data].sort((a, b) => {
+        const aTime = a.responded_at || a.requested_at || a.created_at;
+        const bTime = b.responded_at || b.requested_at || b.created_at;
+        return new Date(bTime) - new Date(aTime);
+      });
+      setMyRequests(sorted);
+    } catch {
+      setMyRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
+  useEffect(() => { load(); }, [load]);
+
+  // Lowercase status comparisons per API contract
   const notifications = myRequests.map((req) => {
-    const patient = findPatient(req.patientId);
-    if (req.status === "APPROVED") {
+    if (req.status === "approved") {
       return {
-        id: req.requestId,
+        id: req.id || req.request_id,
         type: "success",
         title: "Access Request Approved",
-        body: `${patient?.name || req.patientId} approved your request to view their medical records.`,
-        action: { label: "View Records", patientId: req.patientId },
-        time: req.approvedAt,
-        expiresAt: req.expiresAt,
+        body: `Patient (${req.patient_id}) approved your request to view their medical records.`,
+        action: { label: "View Records", patientId: req.patient_id },
+        time: req.responded_at,
+        expiresAt: req.expires_at,
       };
     }
-    if (req.status === "DENIED") {
+    if (req.status === "denied") {
       return {
-        id: req.requestId,
+        id: req.id || req.request_id,
         type: "error",
         title: "Access Request Denied",
-        body: `${patient?.name || req.patientId} denied your request to view their medical records.`,
+        body: `Patient (${req.patient_id}) denied your request to view their medical records.`,
         action: null,
-        time: req.approvedAt,
+        time: req.responded_at,
         expiresAt: null,
       };
     }
     return {
-      id: req.requestId,
+      id: req.id || req.request_id,
       type: "info",
       title: "Access Request Pending",
-      body: `Your request to access ${patient?.name || req.patientId}'s records is awaiting approval.`,
+      body: `Your request to access patient ${req.patient_id}'s records is awaiting approval.`,
       action: null,
-      time: req.requestedAt,
+      time: req.requested_at || req.created_at,
       expiresAt: null,
     };
   });
 
   const styleMap = {
-    success: {
-      card:  "bg-green-50 border-green-200",
-      title: "text-green-900",
-      body:  "text-green-700",
-      meta:  "text-green-600",
-    },
-    error: {
-      card:  "bg-red-50 border-red-200",
-      title: "text-red-900",
-      body:  "text-red-700",
-      meta:  "text-red-500",
-    },
-    info: {
-      card:  "bg-blue-50 border-blue-200",
-      title: "text-blue-900",
-      body:  "text-blue-700",
-      meta:  "text-blue-500",
-    },
+    success: { card: "bg-green-50 border-green-200", title: "text-green-900", body: "text-green-700", meta: "text-green-600" },
+    error:   { card: "bg-red-50 border-red-200",     title: "text-red-900",   body: "text-red-700",   meta: "text-red-500" },
+    info:    { card: "bg-blue-50 border-blue-200",   title: "text-blue-900",  body: "text-blue-700",  meta: "text-blue-500" },
   };
 
   const iconMap = {
@@ -87,7 +86,9 @@ function DoctorNotificationsPage() {
           <p className="text-slate-500 mt-2">Updates on your access requests and activity.</p>
         </div>
 
-        {notifications.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader size={28} className="animate-spin text-blue-400" /></div>
+        ) : notifications.length === 0 ? (
           <div className="bg-white border rounded-3xl p-12 text-center text-slate-400">
             <Bell size={48} className="mx-auto mb-4 opacity-30" />
             <p>No notifications yet. They will appear here when patients respond to your requests.</p>
@@ -101,33 +102,21 @@ function DoctorNotificationsPage() {
                   <div className="flex items-start gap-3">
                     {iconMap[n.type]}
                     <div className="flex-1 min-w-0">
-
-                      {/* Title + timestamp */}
                       <div className="flex items-start justify-between gap-4">
                         <p className={`font-bold text-sm ${s.title}`}>{n.title}</p>
                         {n.time && (
                           <p className={`text-xs shrink-0 whitespace-nowrap ${s.meta}`}>
-                            {new Date(n.time).toLocaleDateString("en-IN", {
-                              day: "numeric", month: "short", year: "numeric",
-                            })}
+                            {new Date(n.time).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                           </p>
                         )}
                       </div>
-
-                      {/* Body */}
                       <p className={`text-sm mt-1 ${s.body}`}>{n.body}</p>
-
-                      {/* Expiry line */}
                       {n.expiresAt && (
                         <p className={`text-xs mt-1.5 ${s.meta}`}>
                           Access expires{" "}
-                          {new Date(n.expiresAt).toLocaleDateString("en-IN", {
-                            day: "numeric", month: "short", year: "numeric",
-                          })}
+                          {new Date(n.expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </p>
                       )}
-
-                      {/* View Records action */}
                       {n.action && (
                         <button
                           onClick={() =>
@@ -141,7 +130,6 @@ function DoctorNotificationsPage() {
                           <ChevronRight size={14} />
                         </button>
                       )}
-
                     </div>
                   </div>
                 </div>

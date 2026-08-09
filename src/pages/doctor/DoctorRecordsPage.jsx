@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { useAppData } from "../../context/AppDataContext";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import DoctorLayout from "../../layouts/DoctorLayout";
 import {
   FileText, User, Calendar, FileSearch, ChevronDown, ChevronUp,
-  X, Sparkles, ShieldCheck, ZoomIn, ZoomOut, Download, Clock, AlertTriangle,
+  X, Sparkles, ShieldCheck, ZoomIn, ZoomOut, Download, Clock, AlertTriangle, Loader,
 } from "lucide-react";
+import { getMyAccess } from "../../api/consent.js";
+import { getRecords, getFileUrl } from "../../api/records.js";
 
 // Returns { daysLeft, isExpired, label, color } for an approved-access report.
-// Own uploads return null (no expiry).
 function getExpiryInfo(expiresAt) {
   if (!expiresAt) return null;
   const msLeft = new Date(expiresAt) - Date.now();
@@ -22,33 +22,33 @@ function getExpiryInfo(expiresAt) {
   return { daysLeft, isExpired: false, label: `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`, color: "bg-yellow-50 text-yellow-700 border-yellow-200" };
 }
 
-// ── Reusable Report Viewer Modal (same pattern as patient side) ────────────────
-function ReportViewerModal({ report, patient, onClose }) {
+// ── Report Viewer Modal ────────────────────────────────────────────────────────
+function ReportViewerModal({ report, onClose }) {
   const [zoom, setZoom] = useState(1);
+  const [fileUrl, setFileUrl] = useState(report._signedUrl || null);
+  const [loadingFile, setLoadingFile] = useState(!fileUrl);
 
-  const isPDF = report.fileName?.toLowerCase().endsWith(".pdf");
-  const isImage =
-    report.fileName?.toLowerCase().endsWith(".jpg") ||
-    report.fileName?.toLowerCase().endsWith(".jpeg") ||
-    report.fileName?.toLowerCase().endsWith(".png");
+  useEffect(() => {
+    if (fileUrl) return;
+    getFileUrl(report.id)
+      .then((res) => setFileUrl(res.signed_url))
+      .catch(() => setFileUrl(null))
+      .finally(() => setLoadingFile(false));
+  }, [report.id, fileUrl]);
 
-  const fileUrl = report.fileRef || null;
-
+  const isPDF = report.file_name?.toLowerCase().endsWith(".pdf");
+  const isImage = /\.(jpg|jpeg|png)$/i.test(report.file_name || "");
   const expiry = getExpiryInfo(report._expiresAt);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex flex-col" onClick={onClose}>
-      <div
-        className="flex flex-col w-full h-full max-w-5xl mx-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col w-full h-full max-w-5xl mx-auto" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between bg-slate-900 text-white px-6 py-4 shrink-0">
           <div>
-            <p className="font-bold text-sm truncate max-w-lg">{report.fileName.replace(/_/g, " ")}</p>
+            <p className="font-bold text-sm truncate max-w-lg">{(report.file_name || "Report").replace(/_/g, " ")}</p>
             <p className="text-xs text-slate-400 mt-0.5">
-              {report.reportType} · {patient?.name || report.patientId} ({report.patientId}) ·{" "}
-              {new Date(report.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+              {report.report_type} · {new Date(report.created_at || Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -60,37 +60,33 @@ function ReportViewerModal({ report, patient, onClose }) {
               </>
             )}
             {fileUrl && (
-              <a href={fileUrl} download={report.fileName} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
-                <Download size={13} />
-                Download
+              <a href={fileUrl} download={report.file_name} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 transition">
+                <Download size={13} />Download
               </a>
             )}
             <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition"><X size={18} /></button>
           </div>
         </div>
 
-        {/* Expiry warning banner inside viewer */}
+        {/* Expiry warning */}
         {expiry && (
           <div className={`flex items-center gap-3 px-6 py-2.5 border-b text-sm font-medium ${expiry.isExpired ? "bg-red-900/80 border-red-700 text-red-100" : "bg-yellow-900/60 border-yellow-700 text-yellow-100"}`}>
             <AlertTriangle size={15} className="shrink-0" />
-            {expiry.isExpired
-              ? "Your approved access to this report has expired. The patient would need to re-approve."
-              : `Approved access ${expiry.label.toLowerCase()} — the patient's authorisation will end soon.`}
+            {expiry.isExpired ? "Your approved access to this report has expired." : `Approved access ${expiry.label.toLowerCase()} — the patient's authorisation will end soon.`}
           </div>
         )}
 
         {/* Document area */}
         <div className="flex-1 overflow-auto bg-slate-800 p-6">
-          {fileUrl && isPDF ? (
-            <iframe src={fileUrl} title={report.fileName} className="w-full h-full rounded-xl" style={{ minHeight: "70vh" }} />
+          {loadingFile ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader size={32} className="animate-spin text-blue-400" />
+            </div>
+          ) : fileUrl && isPDF ? (
+            <iframe src={fileUrl} title={report.file_name} className="w-full h-full rounded-xl" style={{ minHeight: "70vh" }} />
           ) : fileUrl && isImage ? (
             <div className="flex items-start justify-center min-h-full">
-              <img
-                src={fileUrl}
-                alt={report.fileName}
-                style={{ transform: `scale(${zoom})`, transformOrigin: "top center", transition: "transform 0.2s" }}
-                className="max-w-full rounded-xl shadow-lg"
-              />
+              <img src={fileUrl} alt={report.file_name} style={{ transform: `scale(${zoom})`, transformOrigin: "top center", transition: "transform 0.2s" }} className="max-w-full rounded-xl shadow-lg" />
             </div>
           ) : (
             <div className="max-w-2xl mx-auto">
@@ -101,67 +97,47 @@ function ReportViewerModal({ report, patient, onClose }) {
                       <FileText size={22} className="text-blue-600" />
                     </div>
                     <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
-                      <ShieldCheck size={12} />
-                      {report.status}
+                      <ShieldCheck size={12} />{report.status}
                     </span>
                   </div>
-                  <h2 className="text-xl font-bold text-slate-900">{report.fileName.replace(/_/g, " ").replace(/\.\w+$/, "")}</h2>
-                  <p className="text-slate-500 text-sm mt-1">{report.reportType}</p>
-                  <p className="text-xs text-blue-600 font-medium mt-1">
-                    Patient: {patient?.name || report.patientId} · <span className="font-mono">{report.patientId}</span>
-                  </p>
+                  <h2 className="text-xl font-bold text-slate-900">{(report.file_name || "").replace(/_/g, " ").replace(/\.\w+$/, "")}</h2>
+                  <p className="text-slate-500 text-sm mt-1">{report.report_type}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-slate-50 rounded-xl p-4">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Report Date</p>
-                    <p className="font-semibold text-slate-800">
-                      {report.extracted?.dates?.reportDate
-                        ? new Date(report.extracted.dates.reportDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
-                        : new Date(report.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-                    </p>
-                  </div>
-                  <div className="bg-slate-50 rounded-xl p-4">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Ordering Doctor</p>
-                    <p className="font-semibold text-slate-800">{report.uploaderName}</p>
+                    <p className="font-semibold text-slate-800">{report.uploader_name || "—"}</p>
                   </div>
-                  {report.extracted?.hospitals?.[0] && (
-                    <div className="bg-slate-50 rounded-xl p-4">
-                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Facility</p>
-                      <p className="font-semibold text-slate-800">{report.extracted.hospitals[0]}</p>
-                    </div>
-                  )}
                   <div className="bg-slate-50 rounded-xl p-4">
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Report ID</p>
-                    <p className="font-mono text-slate-700 text-sm">{report.reportId}</p>
+                    <p className="font-mono text-slate-700 text-sm">{report.id}</p>
                   </div>
                 </div>
 
-                {report.extracted?.procedures?.length > 0 && (
+                {report.procedures?.length > 0 && (
                   <div className="mb-6">
                     <p className="text-sm font-bold text-slate-700 mb-3">Tests / Procedures Performed</p>
                     <div className="flex flex-wrap gap-2">
-                      {report.extracted.procedures.map((p, i) => (
+                      {report.procedures.map((p, i) => (
                         <span key={i} className="bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium px-3 py-1.5 rounded-full">{p}</span>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {report.extracted?.labValues?.length > 0 && (
+                {report.lab_values?.length > 0 && (
                   <div className="mb-6">
                     <p className="text-sm font-bold text-slate-700 mb-3">Laboratory Results</p>
                     <div className="border rounded-xl overflow-hidden">
                       <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-slate-50 border-b">
-                            <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Parameter</th>
-                            <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Result</th>
-                            <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Status</th>
-                          </tr>
-                        </thead>
+                        <thead><tr className="bg-slate-50 border-b">
+                          <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Parameter</th>
+                          <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Result</th>
+                          <th className="text-left px-4 py-2.5 font-semibold text-slate-600">Status</th>
+                        </tr></thead>
                         <tbody>
-                          {report.extracted.labValues.map((lv, i) => (
+                          {report.lab_values.map((lv, i) => (
                             <tr key={i} className="border-b last:border-0">
                               <td className="px-4 py-2.5 text-slate-700 font-medium">{lv.name}</td>
                               <td className="px-4 py-2.5 font-mono text-slate-800">{lv.value} {lv.unit}</td>
@@ -178,11 +154,11 @@ function ReportViewerModal({ report, patient, onClose }) {
                   </div>
                 )}
 
-                {report.extracted?.diagnoses?.length > 0 && (
+                {report.diagnosis?.length > 0 && (
                   <div className="mb-6">
                     <p className="text-sm font-bold text-slate-700 mb-3">Clinical Findings</p>
                     <div className="space-y-2">
-                      {report.extracted.diagnoses.map((d, i) => (
+                      {report.diagnosis.map((d, i) => (
                         <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
                           <span className="text-orange-500 font-bold mt-0.5">→</span>{d}
                         </div>
@@ -191,11 +167,11 @@ function ReportViewerModal({ report, patient, onClose }) {
                   </div>
                 )}
 
-                {report.extracted?.followUps?.length > 0 && (
+                {report.follow_ups?.length > 0 && (
                   <div className="mb-6">
                     <p className="text-sm font-bold text-slate-700 mb-3">Recommendations</p>
                     <div className="space-y-2">
-                      {report.extracted.followUps.map((f, i) => (
+                      {report.follow_ups.map((f, i) => (
                         <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
                           <span className="text-green-600 font-bold mt-0.5">✓</span>{f}
                         </div>
@@ -205,7 +181,7 @@ function ReportViewerModal({ report, patient, onClose }) {
                 )}
 
                 <div className="mt-4 pt-4 border-t text-xs text-slate-400 text-center">
-                  Original document — uploaded by {report.uploaderName} · {new Date(report.uploadedAt).toLocaleString("en-IN")}
+                  Uploaded by {report.uploader_name || "—"} · {new Date(report.created_at || Date.now()).toLocaleString("en-IN")}
                 </div>
               </div>
             </div>
@@ -216,67 +192,63 @@ function ReportViewerModal({ report, patient, onClose }) {
   );
 }
 
-// ── AI Summary Panel ──────────────────────────────────────────────────────────
-function AISummaryPanel({ report }) {
-  const [open, setOpen] = useState(false);
-  if (!report.summary || report.summary.length === 0) return null;
-  return (
-    <div className="mt-3 border border-purple-200 rounded-xl overflow-hidden">
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-purple-50 hover:bg-purple-100 transition"
-      >
-        <div className="flex items-center gap-2">
-          <Sparkles size={14} className="text-purple-600" />
-          <span className="font-semibold text-purple-800 text-sm">Lifeline AI Summary</span>
-          <span className="text-xs text-purple-500 bg-purple-100 border border-purple-200 px-2 py-0.5 rounded-full">
-            AI-generated — not the original report
-          </span>
-        </div>
-        {open ? <ChevronUp size={15} className="text-purple-500" /> : <ChevronDown size={15} className="text-purple-500" />}
-      </button>
-      {open && (
-        <div className="px-4 pb-4 pt-3 bg-purple-50/50">
-          <ul className="space-y-1.5">
-            {report.summary.map((s, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                <span className="text-purple-500 shrink-0 mt-0.5">•</span>{s}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Main Page ──────────────────────────────────────────────────────────────────
 function DoctorRecordsPage() {
   const { currentUser } = useAuth();
-  const { reports, accessRequests, findPatient } = useAppData();
   const [viewingReport, setViewingReport] = useState(null);
 
-  const ownReports = reports.filter((r) => r.uploadedBy === currentUser.id);
+  // All records accessible to this doctor: own uploads + approved-access records.
+  // The backend returns both from GET /medical-records when called with doctor JWT
+  // (consent middleware applies). We gather patient IDs from approved consents
+  // and fetch records for each, then deduplicate.
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const approvedAccess = accessRequests.filter(
-    (req) => req.doctorId === currentUser.id && req.status === "APPROVED"
-  );
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Fetch the doctor's own consent/access list to know which patient IDs to query
+      const accesses = await getMyAccess();
 
-  // Attach the matching access request's expiresAt onto each approved-access report
-  // so the record card and modal can display expiry info.
-  const accessibleFromApproval = reports
-    .filter((r) =>
-      approvedAccess.some((req) => req.patientId === r.patientId)
-    )
-    .filter((r) => !ownReports.some((own) => own.reportId === r.reportId))
-    .map((r) => {
-      const req = approvedAccess.find((req) => req.patientId === r.patientId);
-      return { ...r, _expiresAt: req?.expiresAt ?? null };
-    });
+      // Approved accesses give us additional patient IDs
+      const approvedPatientIds = accesses
+        .filter((a) => a.status === "approved")
+        .map((a) => ({ patientId: a.patient_id, expiresAt: a.expires_at }));
 
-  const allAccessible = [...ownReports, ...accessibleFromApproval];
+      // Fetch records for all accessible patients in parallel
+      // Each call returns the records the backend allows (own + approved)
+      const patientIds = [...new Set(approvedPatientIds.map((a) => a.patientId))];
 
-  const viewingPatient = viewingReport ? findPatient(viewingReport.patientId) : null;
+      const fetches = patientIds.map((pid) =>
+        getRecords(pid).then((recs) => {
+          const accessEntry = approvedPatientIds.find((a) => a.patientId === pid);
+          // Attach expiry info for display
+          return recs.map((r) => ({ ...r, _expiresAt: accessEntry?.expiresAt || null }));
+        }).catch(() => [])
+      );
+
+      const results = await Promise.all(fetches);
+      const allRecords = results.flat();
+
+      // Deduplicate by id
+      const seen = new Set();
+      const deduped = allRecords.filter((r) => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
+
+      setRecords(deduped);
+    } catch (err) {
+      setError(err.message || "Failed to load records.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <DoctorLayout>
@@ -289,7 +261,13 @@ function DoctorRecordsPage() {
           </p>
         </div>
 
-        {allAccessible.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <Loader size={36} className="animate-spin text-blue-400" />
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl p-6 text-sm">{error}</div>
+        ) : records.length === 0 ? (
           <div className="bg-white rounded-3xl border p-12 text-center text-slate-400">
             <FileText size={48} className="mx-auto mb-4 opacity-30" />
             <h2 className="text-xl font-semibold text-slate-600 mb-2">No records yet</h2>
@@ -297,82 +275,60 @@ function DoctorRecordsPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {allAccessible.map((r) => {
-              const patient = findPatient(r.patientId);
+            {records.map((r) => {
+              const expiry = r._expiresAt ? getExpiryInfo(r._expiresAt) : null;
               return (
-                <div key={r.reportId} className="bg-white border rounded-3xl p-6 shadow-sm hover:shadow-md transition">
+                <div key={r.id} className="bg-white border rounded-3xl p-6 shadow-sm hover:shadow-md transition">
                   <div className="flex items-center gap-5">
                     <div className="bg-blue-100 p-4 rounded-2xl shrink-0">
                       <FileText size={20} className="text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-slate-900">{r.fileName.replace(/_/g, " ")}</h3>
+                      <h3 className="font-bold text-slate-900">{(r.file_name || "Report").replace(/_/g, " ")}</h3>
                       <div className="flex flex-wrap gap-4 mt-1.5 text-sm text-slate-500">
                         <span className="flex items-center gap-1.5">
-                          <User size={13} />
-                          {patient?.name || r.patientId} &nbsp;(<span className="font-mono">{r.patientId}</span>)
-                        </span>
-                        <span className="flex items-center gap-1.5">
                           <Calendar size={13} />
-                          {new Date(r.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          {new Date(r.created_at || Date.now()).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </span>
-                        <span>{r.reportType}</span>
+                        <span>{r.report_type}</span>
+                        {r.uploader_name && <span>Uploaded by: {r.uploader_name}</span>}
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
                       <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full">
                         {r.status}
                       </span>
-                      {r.uploadedBy !== currentUser.id && (() => {
-                        const expiry = getExpiryInfo(r._expiresAt);
-                        return expiry ? (
-                          <span className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full border ${expiry.color}`}>
-                            <Clock size={11} />
-                            {expiry.label}
-                          </span>
-                        ) : (
-                          <span className="bg-purple-100 text-purple-600 text-xs font-semibold px-3 py-1 rounded-full border border-purple-200">
-                            Approved Access · No expiry
-                          </span>
-                        );
-                      })()}
+                      {expiry && (
+                        <span className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full border ${expiry.color}`}>
+                          <Clock size={11} />
+                          {expiry.label}
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* Metadata */}
                   <div className="mt-5 pt-5 border-t grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-slate-500">
                     <div>
-                      <p className="font-semibold text-slate-700 mb-0.5">Report ID</p>
-                      <p className="font-mono">{r.reportId}</p>
+                      <p className="font-semibold text-slate-700 mb-0.5">Record ID</p>
+                      <p className="font-mono truncate">{r.id}</p>
                     </div>
                     <div>
-                      <p className="font-semibold text-slate-700 mb-0.5">Uploaded By</p>
-                      <p className="font-mono">{r.uploadedBy}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-700 mb-0.5">Report Date</p>
-                      <p>{r.extracted?.dates?.reportDate || r.uploadedAt.slice(0, 10)}</p>
+                      <p className="font-semibold text-slate-700 mb-0.5">File</p>
+                      <p>{r.file_name || "—"}</p>
                     </div>
                     <div>
                       <p className="font-semibold text-slate-700 mb-0.5">Verification</p>
                       <p className="text-green-600 font-semibold">{r.status}</p>
                     </div>
-                    {r.uploadedBy !== currentUser.id && (
-                      <div className="col-span-2 md:col-span-4 border-t pt-3 mt-1">
-                        <p className="font-semibold text-slate-700 mb-0.5 flex items-center gap-1.5">
+                    {r._expiresAt && (
+                      <div>
+                        <p className="font-semibold text-slate-700 mb-0.5 flex items-center gap-1">
                           <Clock size={11} /> Access Expires
                         </p>
-                        {r._expiresAt ? (
-                          <p className={getExpiryInfo(r._expiresAt)?.isExpired ? "text-red-600 font-semibold" : "text-slate-600"}>
-                            {new Date(r._expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-                            {" — "}
-                            {getExpiryInfo(r._expiresAt)?.isExpired
-                              ? "Expired — patient re-approval needed"
-                              : getExpiryInfo(r._expiresAt)?.label}
-                          </p>
-                        ) : (
-                          <p className="text-slate-400">No expiry set — access is indefinite until patient revokes it.</p>
-                        )}
+                        <p className={getExpiryInfo(r._expiresAt)?.isExpired ? "text-red-600 font-semibold" : "text-slate-600"}>
+                          {new Date(r._expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -384,12 +340,9 @@ function DoctorRecordsPage() {
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition"
                     >
                       <FileSearch size={15} />
-                      View Original Report
+                      View Report
                     </button>
                   </div>
-
-                  {/* AI Summary */}
-                  <AISummaryPanel report={r} />
                 </div>
               );
             })}
@@ -400,7 +353,6 @@ function DoctorRecordsPage() {
         {viewingReport && (
           <ReportViewerModal
             report={viewingReport}
-            patient={viewingPatient}
             onClose={() => setViewingReport(null)}
           />
         )}
