@@ -1,26 +1,34 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { User, Eye, EyeOff, AlertCircle, Heart, CheckCircle } from "lucide-react";
-import { useAppData } from "../../context/AppDataContext";
+import { registerPatient, updatePatientProfile } from "../../api/patientAuth.js";
+import { setToken } from "../../api/client.js";
 
 function PatientRegisterPage() {
   const navigate = useNavigate();
-  const { registerPatient } = useAppData();
 
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({
+    lflCode: "",
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(null); // { id, name }
+  const [success, setSuccess] = useState(null); // { lflCode }
   const [isLoading, setIsLoading] = useState(false);
 
   const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    const { name, email, phone, password, confirmPassword } = form;
-    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
+    const { lflCode, name, email, phone, password, confirmPassword } = form;
+
+    if (!lflCode.trim() || !name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
       setError("Please fill in all fields.");
       return;
     }
@@ -42,11 +50,28 @@ function PatientRegisterPage() {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      const newPatient = registerPatient({ name: name.trim(), email: email.trim(), phone: phone.trim(), password });
-      setSuccess({ id: newPatient.id, name: newPatient.name });
+    try {
+      // Step 1: claim the account
+      await registerPatient(lflCode.trim().toUpperCase(), password);
+
+      // Step 2: log in to get a token for the profile update
+      const { access_token } = await import("../../api/patientAuth.js").then(
+        (m) => m.loginPatient(lflCode.trim().toUpperCase(), password)
+      );
+      setToken(access_token);
+
+      // Step 3: save name / email / phone
+      await updatePatientProfile({
+        email: email.trim(),
+        phone: phone.trim(),
+      });
+
+      setSuccess({ lflCode: lflCode.trim().toUpperCase() });
+    } catch (err) {
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
       setIsLoading(false);
-    }, 600);
+    }
   };
 
   return (
@@ -66,9 +91,9 @@ function PatientRegisterPage() {
           </Link>
           <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-semibold mb-3">
             <User size={16} />
-            Create Patient Account
+            Claim Patient Account
           </div>
-          <p className="text-slate-600 text-sm">Register to access your medical records on Lifeline.</p>
+          <p className="text-slate-600 text-sm">Use the Lifeline Code provided by your clinic to set up access.</p>
         </div>
 
         {/* Success state */}
@@ -77,13 +102,13 @@ function PatientRegisterPage() {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle size={32} className="text-green-600" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Account Created!</h2>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Account Activated!</h2>
             <p className="text-slate-500 text-sm mb-5">
-              Welcome, <strong>{success.name}</strong>. Your Patient ID is:
+              Your Lifeline account is ready. Sign in with your code:
             </p>
             <div className="bg-slate-100 rounded-xl px-6 py-4 mb-6">
-              <p className="text-2xl font-black font-mono text-blue-700 tracking-widest">{success.id}</p>
-              <p className="text-xs text-slate-500 mt-1">Save this — you'll need it to sign in.</p>
+              <p className="text-2xl font-black font-mono text-blue-700 tracking-widest">{success.lflCode}</p>
+              <p className="text-xs text-slate-500 mt-1">Use this code to sign in.</p>
             </div>
             <button
               onClick={() => navigate("/patient/login")}
@@ -103,6 +128,22 @@ function PatientRegisterPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Your Lifeline Code
+                </label>
+                <input
+                  type="text"
+                  value={form.lflCode}
+                  onChange={set("lflCode")}
+                  placeholder="LFL-J6MTOC"
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono uppercase"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  This code was given to you by your clinic when you were registered as a patient.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name</label>
                 <input
@@ -175,10 +216,10 @@ function PatientRegisterPage() {
                 {isLoading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Creating account...
+                    Activating account...
                   </>
                 ) : (
-                  "Create Patient Account"
+                  "Activate Patient Account"
                 )}
               </button>
             </form>

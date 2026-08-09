@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
-import { MapPin, FileText, Stethoscope, Calendar, ChevronDown, ChevronUp, Activity } from "lucide-react";
+import { MapPin, FileText, Stethoscope, Calendar, ChevronDown, ChevronUp, Activity, Loader2 } from "lucide-react";
+import { getTimeline } from "../../api/timeline.js";
 
 const TYPE_COLORS = {
   "Blood Test":   "bg-red-100 text-red-700 border-red-200",
@@ -98,8 +98,31 @@ function EventCard({ event }) {
 
 function HealthJourneyPage() {
   const { currentUser } = useAuth();
-  const { getPatientTimeline } = useAppData();
-  const events = getPatientTimeline(currentUser.id);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getTimeline()
+      .then((data) => {
+        // Normalise backend shape to what the component expects
+        const mapped = (Array.isArray(data) ? data : []).map((e, i) => ({
+          eventId: e.eventId ?? `evt-${i}`,
+          date: e.date,
+          title: e.title,
+          type: e.type || "Medical Report",
+          description: e.description || "",
+          diagnoses: e.diagnosis ?? e.diagnoses ?? [],
+          procedures: e.procedures ?? [],
+          doctor: e.doctor || "",
+          hospital: e.hospital || "",
+          reportId: e.reportId || null,
+        }));
+        setEvents(mapped);
+      })
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const grouped = groupByYear(events);
 
   // Filter by type
@@ -107,6 +130,16 @@ function HealthJourneyPage() {
   const [activeType, setActiveType] = useState("All");
   const filtered = activeType === "All" ? events : events.filter((e) => e.type === activeType);
   const filteredGrouped = groupByYear(filtered);
+
+  if (loading) {
+    return (
+      <PatientLayout>
+        <div className="p-10 flex items-center justify-center min-h-[40vh] text-slate-400">
+          <Loader2 size={32} className="animate-spin mr-3" /> Loading your health journey…
+        </div>
+      </PatientLayout>
+    );
+  }
 
   return (
     <PatientLayout>

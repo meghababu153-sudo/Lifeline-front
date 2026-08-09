@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
-import { TrendingUp, TrendingDown, Minus, FlaskConical, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, FlaskConical, Info, Loader2 } from "lucide-react";
 import LabChart from "../../components/patient/LabChart";
+import { getRecords } from "../../api/records.js";
 
 // Reference ranges (display only — not for diagnosis)
 const REFERENCE_RANGES = {
@@ -96,11 +96,43 @@ function LabCard({ name, values }) {
 
 function LabTrendsPage() {
   const { currentUser } = useAuth();
-  const { getPatientLabTrends } = useAppData();
-  const trends = getPatientLabTrends(currentUser.id);
+  const [trends, setTrends] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser?.patient_id) return;
+    getRecords(currentUser.patient_id)
+      .then((records) => {
+        // Build trend map: group lab_values by name across all records, sort by date
+        const labMap = {};
+        (Array.isArray(records) ? records : []).forEach((r) => {
+          (r.lab_values || []).forEach((lv) => {
+            if (!labMap[lv.name]) labMap[lv.name] = [];
+            labMap[lv.name].push({ ...lv, reportId: r.id, reportFile: r.file_name });
+          });
+        });
+        Object.keys(labMap).forEach((k) => {
+          labMap[k].sort((a, b) => new Date(a.date) - new Date(b.date));
+        });
+        setTrends(labMap);
+      })
+      .catch(() => setTrends({}))
+      .finally(() => setLoading(false));
+  }, [currentUser?.patient_id]);
+
   const markers = Object.keys(trends);
 
   const [activeFilter, setActiveFilter] = useState("All");
+  if (loading) {
+    return (
+      <PatientLayout>
+        <div className="p-10 flex items-center justify-center min-h-[40vh] text-slate-400">
+          <Loader2 size={32} className="animate-spin mr-3" /> Loading lab trends…
+        </div>
+      </PatientLayout>
+    );
+  }
+
   const abnormal = markers.filter((m) => {
     const vals = trends[m];
     const last = vals[vals.length - 1];

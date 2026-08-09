@@ -1,7 +1,8 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
-import { CalendarDays, Stethoscope, MapPin, Clock, CheckCircle, Calendar, FileText } from "lucide-react";
+import { CalendarDays, Stethoscope, MapPin, Clock, CheckCircle, Calendar, FileText, Loader2 } from "lucide-react";
+import { getAppointments } from "../../api/appointments.js";
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
@@ -27,6 +28,10 @@ const TYPE_COLOR = {
 
 function AppointmentCard({ appt, isPast }) {
   const days = !isPast ? daysFromNow(appt.date) : null;
+  // Support both backend field names (doctor_name) and legacy (doctorName)
+  const doctorName = appt.doctor_name || appt.doctorName || "—";
+  const specialization = appt.specialization || "";
+  const location = appt.location || "—";
 
   return (
     <div className={`bg-white border rounded-3xl p-6 shadow-sm hover:shadow-md transition ${
@@ -41,8 +46,8 @@ function AppointmentCard({ appt, isPast }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="font-bold text-slate-900 text-lg">{appt.doctorName}</h3>
-              <p className="text-sm text-slate-500">{appt.specialization}</p>
+              <h3 className="font-bold text-slate-900 text-lg">{doctorName}</h3>
+              <p className="text-sm text-slate-500">{specialization}</p>
             </div>
             <div className="flex flex-col items-end gap-2 shrink-0">
               {!isPast && days && (
@@ -76,7 +81,7 @@ function AppointmentCard({ appt, isPast }) {
             </div>
             <div className="flex items-start gap-2 text-slate-600 sm:col-span-2">
               <MapPin size={14} className="text-slate-400 shrink-0 mt-0.5" />
-              {appt.location}
+              {location}
             </div>
             {appt.notes && (
               <div className="flex items-start gap-2 text-slate-600 sm:col-span-2">
@@ -93,15 +98,32 @@ function AppointmentCard({ appt, isPast }) {
 
 function AppointmentsPage() {
   const { currentUser } = useAuth();
-  const { getPatientAppointments } = useAppData();
+  const [all, setAll] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const all = getPatientAppointments(currentUser.id);
+  useEffect(() => {
+    getAppointments()
+      .then((data) => setAll(Array.isArray(data) ? data : []))
+      .catch(() => setAll([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   const upcoming = all
-    .filter((a) => a.status === "Upcoming" || new Date(a.date + "T00:00:00") >= new Date())
+    .filter((a) => a.status === "upcoming" || new Date(a.date + "T00:00:00") >= new Date())
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const past = all
-    .filter((a) => a.status === "Completed" || new Date(a.date + "T00:00:00") < new Date())
+    .filter((a) => a.status === "completed" || (a.status !== "upcoming" && new Date(a.date + "T00:00:00") < new Date()))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (loading) {
+    return (
+      <PatientLayout>
+        <div className="p-10 flex items-center justify-center min-h-[40vh] text-slate-400">
+          <Loader2 size={32} className="animate-spin mr-3" /> Loading appointments…
+        </div>
+      </PatientLayout>
+    );
+  }
 
   return (
     <PatientLayout>
@@ -143,7 +165,7 @@ function AppointmentsPage() {
                   Upcoming Appointments
                 </h2>
                 <div className="space-y-4">
-                  {upcoming.map((a) => <AppointmentCard key={a.appointmentId} appt={a} isPast={false} />)}
+                  {upcoming.map((a) => <AppointmentCard key={a.id || a.appointmentId} appt={a} isPast={false} />)}
                 </div>
               </div>
             )}
@@ -155,7 +177,7 @@ function AppointmentsPage() {
                   Past Appointments
                 </h2>
                 <div className="space-y-4">
-                  {past.map((a) => <AppointmentCard key={a.appointmentId} appt={a} isPast={true} />)}
+                  {past.map((a) => <AppointmentCard key={a.id || a.appointmentId} appt={a} isPast={true} />)}
                 </div>
               </div>
             )}

@@ -1,7 +1,8 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
-import { Pill, Calendar, RefreshCw, FileText, AlertCircle, Clock } from "lucide-react";
+import { Pill, Calendar, RefreshCw, FileText, AlertCircle, Clock, Loader2 } from "lucide-react";
+import { getRecords } from "../../api/records.js";
 
 function daysUntilRefill(dateStr) {
   if (!dateStr) return null;
@@ -36,8 +37,25 @@ function RefillBadge({ dateStr }) {
 
 function MedicationsPage() {
   const { currentUser } = useAuth();
-  const { getPatientMedications } = useAppData();
-  const medications = getPatientMedications(currentUser.id);
+  const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentUser?.patient_id) return;
+    getRecords(currentUser.patient_id)
+      .then((records) => {
+        // Extract medicines from every record, attach source file name
+        const meds = [];
+        (Array.isArray(records) ? records : []).forEach((r) => {
+          (r.medicines || []).forEach((m) => {
+            meds.push({ ...m, sourceReport: r.file_name, reportId: r.id, reportDate: r.dates?.[0] || r.created_at });
+          });
+        });
+        setMedications(meds);
+      })
+      .catch(() => setMedications([]))
+      .finally(() => setLoading(false));
+  }, [currentUser?.patient_id]);
 
   // Deduplicate by name (keep latest entry)
   const seen = new Set();
@@ -47,8 +65,19 @@ function MedicationsPage() {
     return true;
   });
 
-  const active = unique.filter((m) => m.duration === "Ongoing" || daysUntilRefill(m.refillDate) >= 0);
-  const past = unique.filter((m) => m.duration !== "Ongoing" && daysUntilRefill(m.refillDate) < 0);
+  // Backend does not include refillDate — treat all as active if duration is not a past date
+  const active = unique.filter((m) => !m.refillDate || daysUntilRefill(m.refillDate) >= 0);
+  const past = unique.filter((m) => m.refillDate && daysUntilRefill(m.refillDate) < 0);
+
+  if (loading) {
+    return (
+      <PatientLayout>
+        <div className="p-10 flex items-center justify-center min-h-[40vh] text-slate-400">
+          <Loader2 size={32} className="animate-spin mr-3" /> Loading medications…
+        </div>
+      </PatientLayout>
+    );
+  }
 
   return (
     <PatientLayout>

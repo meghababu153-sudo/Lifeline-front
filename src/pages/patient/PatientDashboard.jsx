@@ -1,13 +1,17 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
 import {
   FileText, ClipboardList, Activity, Pill, FlaskConical, CalendarDays,
   ClipboardCheck, Sparkles, Clipboard, ShieldAlert, ChevronRight,
-  Bell, CheckCircle, AlertOctagon, Users, TrendingUp, TrendingDown, Minus,
+  Bell, CheckCircle, AlertOctagon, TrendingUp, TrendingDown, Minus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import LabSparkline from "../../components/patient/LabSparkline";
+import { getRecords } from "../../api/records.js";
+import { getAppointments } from "../../api/appointments.js";
+import { getCarePlan } from "../../api/carePlan.js";
+import { api } from "../../api/client.js";
 
 function QuickCard({ icon: Icon, title, value, subtitle, color, to }) {
   return (
@@ -46,27 +50,51 @@ function FeatureCard({ icon: Icon, title, description, to, color }) {
 
 function PatientDashboard() {
   const { currentUser } = useAuth();
-  const {
-    getPatientReports, getAccessRequestsForPatient, findPatient,
-    getPatientAppointments, getPatientCarePlan, getPatientMedications,
-    getPatientLabTrends, getPatientTimeline,
-  } = useAppData();
+  const [reports, setReports] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [carePlan, setCarePlan] = useState([]);
+  const [pendingConsents, setPendingConsents] = useState([]);
+
+  useEffect(() => {
+    if (!currentUser?.patient_id) return;
+
+    getRecords(currentUser.patient_id)
+      .then((data) => setReports(Array.isArray(data) ? data : []))
+      .catch(() => setReports([]));
+
+    getAppointments()
+      .then((data) => setAppointments(Array.isArray(data) ? data : []))
+      .catch(() => setAppointments([]));
+
+    getCarePlan()
+      .then((data) => setCarePlan(Array.isArray(data) ? data : []))
+      .catch(() => setCarePlan([]));
+
+    api.get("/consent/pending")
+      .then((data) => setPendingConsents(Array.isArray(data) ? data.filter((c) => c.status === "pending") : []))
+      .catch(() => setPendingConsents([]));
+  }, [currentUser?.patient_id]);
 
   if (!currentUser) return null;
 
-  const patient = findPatient(currentUser.id);
-  const reports = getPatientReports(currentUser.id);
-  const accessRequests = getAccessRequestsForPatient(currentUser.id);
-  const pendingRequests = accessRequests.filter((r) => r.status === "PENDING");
-  const appointments = getPatientAppointments(currentUser.id);
-  const upcomingAppts = appointments.filter((a) => a.status === "Upcoming");
-  const carePlan = getPatientCarePlan(currentUser.id);
-  const pendingCare = carePlan.filter((c) => c.status !== "Completed");
-  const medications = getPatientMedications(currentUser.id);
-  const labs = getPatientLabTrends(currentUser.id);
-  const labCount = Object.keys(labs).length;
-  const timeline = getPatientTimeline(currentUser.id);
+  const upcomingAppts = appointments.filter((a) => a.status === "upcoming");
+  const pendingCare = carePlan.filter((c) => c.status !== "completed");
   const recentReports = [...reports].slice(0, 3);
+
+  // Build lab trends map for sparklines
+  const labs = {};
+  reports.forEach((r) => {
+    (r.lab_values || []).forEach((lv) => {
+      if (!labs[lv.name]) labs[lv.name] = [];
+      labs[lv.name].push(lv);
+    });
+  });
+  Object.keys(labs).forEach((k) => labs[k].sort((a, b) => new Date(a.date) - new Date(b.date)));
+  const labCount = Object.keys(labs).length;
+
+  // Active medication count (unique names across all records)
+  const medicationNames = new Set();
+  reports.forEach((r) => (r.medicines || []).forEach((m) => medicationNames.add(m.name)));
 
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long", day: "numeric", month: "long",
@@ -84,10 +112,10 @@ function PatientDashboard() {
           </h1>
           <div className="flex items-center gap-3 mt-2 text-sm text-slate-500">
             <span className="font-mono text-xs">{currentUser.displayId}</span>
-            {patient?.bloodGroup && (
+            {currentUser.blood_group && (
               <>
                 <span className="w-1 h-1 bg-slate-400 rounded-full" />
-                <span>Blood Group: <strong className="text-slate-700">{patient.bloodGroup}</strong></span>
+                <span>Blood Group: <strong className="text-slate-700">{currentUser.blood_group}</strong></span>
               </>
             )}
           </div>
@@ -118,9 +146,9 @@ function PatientDashboard() {
             subtitle="Active & pending" color="bg-orange-100 text-orange-600" to="/patient/care-plan"
           />
           <QuickCard
-            icon={Bell} title="Access Requests" value={pendingRequests.length}
-            subtitle={pendingRequests.length > 0 ? "Needs your review" : "All resolved"}
-            color={pendingRequests.length > 0 ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}
+            icon={Bell} title="Access Requests" value={pendingConsents.length}
+            subtitle={pendingConsents.length > 0 ? "Needs your review" : "All resolved"}
+            color={pendingConsents.length > 0 ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}
             to="/patient/access-requests"
           />
         </div>
@@ -139,7 +167,6 @@ function PatientDashboard() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(() => {
                 const allMarkers = Object.keys(labs);
-                // Abnormal markers first, then normal — show up to 3
                 const abnormal = allMarkers.filter((m) => labs[m][labs[m].length - 1]?.normal === false);
                 const normal = allMarkers.filter((m) => labs[m][labs[m].length - 1]?.normal !== false);
                 const toShow = [...abnormal, ...normal].slice(0, 3);
@@ -198,14 +225,14 @@ function PatientDashboard() {
             ) : (
               <div className="space-y-3">
                 {recentReports.map((r) => (
-                  <Link key={r.reportId} to="/patient/reports">
+                  <Link key={r.id} to="/patient/reports">
                     <div className="flex items-center gap-4 p-4 border rounded-xl hover:bg-slate-50 transition">
                       <div className="bg-blue-100 p-2.5 rounded-xl shrink-0">
                         <FileText size={15} className="text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-800 text-sm truncate">{r.fileName.replace(/_/g, " ")}</p>
-                        <p className="text-xs text-slate-500">{r.reportType} · {r.uploaderName}</p>
+                        <p className="font-semibold text-slate-800 text-sm truncate">{(r.file_name || "").replace(/_/g, " ")}</p>
+                        <p className="text-xs text-slate-500">{r.report_type} · {r.uploader_name}</p>
                       </div>
                       <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">
                         {r.status}
@@ -227,16 +254,16 @@ function PatientDashboard() {
                 Manage →
               </Link>
             </div>
-            {pendingRequests.length === 0 ? (
+            {pendingConsents.length === 0 ? (
               <div className="text-center py-6 text-slate-400">
                 <CheckCircle size={32} className="mx-auto mb-2 opacity-30 text-green-400" />
                 <p className="text-sm">No pending requests.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {pendingRequests.map((req) => (
-                  <div key={req.requestId} className="p-4 border border-orange-200 bg-orange-50 rounded-xl">
-                    <p className="font-semibold text-slate-800 text-sm">{req.doctorName}</p>
+                {pendingConsents.map((req) => (
+                  <div key={req.id} className="p-4 border border-orange-200 bg-orange-50 rounded-xl">
+                    <p className="font-semibold text-slate-800 text-sm">{req.doctor_name || "Doctor"}</p>
                     <p className="text-xs text-slate-500 mt-0.5">Requesting access to your records</p>
                     <Link
                       to="/patient/access-requests"
@@ -263,7 +290,7 @@ function PatientDashboard() {
             />
             <FeatureCard
               icon={Activity} title="Health Journey"
-              description={`${timeline.length} events recorded — your chronological medical history.`}
+              description="Your chronological medical history from verified reports."
               color="bg-indigo-100 text-indigo-600" to="/patient/journey"
             />
             <FeatureCard
@@ -273,7 +300,7 @@ function PatientDashboard() {
             />
             <FeatureCard
               icon={Pill} title="Medications"
-              description={`${medications.length > 0 ? `${[...new Set(medications.map(m=>m.name))].length} medication(s) extracted from your reports.` : "Track medications from verified prescriptions."}`}
+              description={medicationNames.size > 0 ? `${medicationNames.size} medication(s) extracted from your reports.` : "Track medications from verified prescriptions."}
               color="bg-green-100 text-green-600" to="/patient/medications"
             />
             <FeatureCard

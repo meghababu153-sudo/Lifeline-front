@@ -1,10 +1,12 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
 import {
   Clipboard, AlertTriangle, Pill, Activity, ClipboardList,
-  MessageSquare, CheckCircle, Stethoscope,
+  MessageSquare, CheckCircle, Stethoscope, Loader2,
 } from "lucide-react";
+import { getRecords } from "../../api/records.js";
+import { getPatientProfile } from "../../api/patientAuth.js";
 
 function Section({ icon: Icon, title, color, children }) {
   return (
@@ -37,16 +39,68 @@ function TagList({ items, colorClass }) {
 
 function VisitBriefPage() {
   const { currentUser } = useAuth();
-  const { getPatientVisitBrief, findPatient } = useAppData();
+  const [brief, setBrief] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const brief = getPatientVisitBrief(currentUser.id);
-  const patient = findPatient(currentUser.id);
+  useEffect(() => {
+    if (!currentUser?.patient_id) return;
+
+    Promise.all([
+      getRecords(currentUser.patient_id),
+      getPatientProfile(),
+    ])
+      .then(([records, profileData]) => {
+        setProfile(profileData);
+
+        // Build brief from records
+        const allDiagnoses = new Set();
+        const allAllergies = new Set();
+        const allMeds = [];
+        const allFollowUps = [];
+        const latestLabs = {};
+
+        (Array.isArray(records) ? records : []).forEach((r) => {
+          (r.diagnosis || []).forEach((d) => allDiagnoses.add(d));
+          (r.allergies || []).forEach((a) => allAllergies.add(a));
+          (r.medicines || []).forEach((m) => allMeds.push({ ...m, from: r.file_name }));
+          (r.follow_ups || []).forEach((f) => allFollowUps.push({ text: f, from: r.file_name, date: r.created_at }));
+          (r.lab_values || []).forEach((lv) => {
+            if (!latestLabs[lv.name] || new Date(lv.date) > new Date(latestLabs[lv.name].date)) {
+              latestLabs[lv.name] = lv;
+            }
+          });
+        });
+
+        setBrief({
+          diagnoses: [...allDiagnoses],
+          allergies: [...allAllergies],
+          medications: allMeds,
+          labHighlights: Object.values(latestLabs),
+          pendingFollowUps: allFollowUps,
+        });
+      })
+      .catch(() => {
+        setBrief({ diagnoses: [], allergies: [], medications: [], labHighlights: [], pendingFollowUps: [] });
+      })
+      .finally(() => setLoading(false));
+  }, [currentUser?.patient_id]);
+
+  if (loading) {
+    return (
+      <PatientLayout>
+        <div className="p-10 flex items-center justify-center min-h-[40vh] text-slate-400">
+          <Loader2 size={32} className="animate-spin mr-3" /> Loading visit brief…
+        </div>
+      </PatientLayout>
+    );
+  }
 
   const today = new Date().toLocaleDateString("en-IN", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
-  // Sample questions for doctor — could be personalized
+  // Sample questions for doctor — personalized from brief
   const questionsForDoctor = [
     brief.pendingFollowUps.length > 0 && "Can you review my pending follow-ups?",
     brief.labHighlights.some((l) => !l.normal) && "Can we discuss any abnormal lab results?",
@@ -79,7 +133,7 @@ function VisitBriefPage() {
             </div>
             <div className="text-right">
               <p className="text-blue-200 text-sm">Blood Group</p>
-              <p className="text-3xl font-bold">{patient?.bloodGroup || "—"}</p>
+              <p className="text-3xl font-bold">{profile?.blood_group || currentUser.blood_group || "—"}</p>
             </div>
           </div>
         </div>

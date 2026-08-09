@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
 import {
   ClipboardCheck, AlertTriangle, Clock, CheckCircle, RefreshCw,
-  Stethoscope, Shield, Heart, Microscope, ChevronDown,
+  Stethoscope, Shield, Heart, Microscope, ChevronDown, Loader2,
 } from "lucide-react";
+import { getCarePlan, updateCarePlanItem } from "../../api/carePlan.js";
 
 const CATEGORY_META = {
   "Follow-up": { icon: Stethoscope, color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
@@ -22,14 +22,14 @@ const PRIORITY_BADGE = {
 };
 
 const STATUS_BADGE = {
-  "Pending": "bg-orange-50 border-orange-200 text-orange-700",
-  "Ongoing": "bg-blue-50 border-blue-200 text-blue-700",
-  "Completed": "bg-green-50 border-green-200 text-green-700",
+  "pending": "bg-orange-50 border-orange-200 text-orange-700",
+  "ongoing": "bg-blue-50 border-blue-200 text-blue-700",
+  "completed": "bg-green-50 border-green-200 text-green-700",
   "Overdue": "bg-red-50 border-red-200 text-red-700",
 };
 
 function isOverdue(item) {
-  return item.dueDate && item.status !== "Completed" && new Date(item.dueDate) < new Date();
+  return item.due_date && item.status !== "completed" && new Date(item.due_date) < new Date();
 }
 
 function daysUntil(dateStr) {
@@ -39,25 +39,55 @@ function daysUntil(dateStr) {
 
 function CarePlanPage() {
   const { currentUser } = useAuth();
-  const { getPatientCarePlan, updateCarePlanItem } = useAppData();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
 
-  const items = getPatientCarePlan(currentUser.id);
+  useEffect(() => {
+    getCarePlan()
+      .then((data) => {
+        // Normalise id → itemId for the component internals
+        const normalised = (Array.isArray(data) ? data : []).map((c) => ({
+          ...c,
+          itemId: c.id,
+          // use due_date from backend
+          dueDate: c.due_date,
+        }));
+        setItems(normalised);
+      })
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   const categories = ["All", ...new Set(items.map((i) => i.category))];
 
   const filtered = filter === "All" ? items : items.filter((i) => i.category === filter);
-  const pending = filtered.filter((i) => i.status !== "Completed" && !isOverdue(i));
+  const pending = filtered.filter((i) => i.status !== "completed" && !isOverdue(i));
   const overdue = filtered.filter((i) => isOverdue(i));
-  const completed = filtered.filter((i) => i.status === "Completed");
+  const completed = filtered.filter((i) => i.status === "completed");
 
   const handleMarkDone = (itemId) => {
-    updateCarePlanItem(itemId, { status: "Completed" });
+    updateCarePlanItem(itemId, "completed")
+      .then(() => {
+        setItems((prev) => prev.map((c) => c.itemId === itemId ? { ...c, status: "completed" } : c));
+      })
+      .catch(() => {/* silently ignore — optimistic update not applied */});
   };
+
+  if (loading) {
+    return (
+      <PatientLayout>
+        <div className="p-10 flex items-center justify-center min-h-[40vh] text-slate-400">
+          <Loader2 size={32} className="animate-spin mr-3" /> Loading care plan…
+        </div>
+      </PatientLayout>
+    );
+  }
 
   function CarePlanCard({ item }) {
     const overdue = isOverdue(item);
     const effectiveStatus = overdue ? "Overdue" : item.status;
-    const days = daysUntil(item.dueDate);
+    const days = daysUntil(item.due_date);
     const catMeta = CATEGORY_META[item.category] || CATEGORY_META["Follow-up"];
     const CatIcon = catMeta.icon;
 
@@ -83,10 +113,10 @@ function CarePlanPage() {
               <h3 className="font-bold text-slate-900 leading-snug">{item.title}</h3>
               <p className="text-sm text-slate-500 mt-1 leading-relaxed">{item.description}</p>
 
-              {item.dueDate && (
+              {item.due_date && (
                 <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-500">
                   <Clock size={11} />
-                  Due: {new Date(item.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  Due: {new Date(item.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                   {days !== null && (
                     <span className={overdue ? "text-red-600 font-semibold" : days <= 14 ? "text-orange-600 font-semibold" : ""}>
                       {overdue ? ` (${Math.abs(days)}d overdue)` : days === 0 ? " (today)" : ` (${days}d)`}
@@ -97,7 +127,7 @@ function CarePlanPage() {
             </div>
           </div>
 
-          {item.status !== "Completed" && (
+          {item.status !== "completed" && (
             <button
               onClick={() => handleMarkDone(item.itemId)}
               className="shrink-0 flex items-center gap-1.5 text-xs font-semibold bg-green-600 text-white px-3 py-2 rounded-xl hover:bg-green-700 transition"

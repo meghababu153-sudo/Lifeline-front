@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, useRef } f
 import { useAppData } from "./AppDataContext";
 import { setToken, clearToken, getToken } from "../api/client.js";
 import { getMe } from "../api/auth.js";
+import { getPatientProfile } from "../api/patientAuth.js";
 
 const AuthContext = createContext();
 
@@ -56,13 +57,41 @@ export function AuthProvider({ children }) {
       setBootstrapping(false);
       return;
     }
-    // Token exists — validate it by calling /auth/me
-    getMe()
+
+    // Decode role from JWT payload (base64url, no verification needed here —
+    // the backend will reject an invalid token on the API call anyway).
+    let role = null;
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+      role = payload.role;
+    } catch {
+      // malformed token — clear and bail
+      clearToken();
+      setBootstrapping(false);
+      return;
+    }
+
+    const bootstrap = role === "patient"
+      ? getPatientProfile().then((profile) => ({
+          id: profile.patient_code,
+          patient_id: profile.id,
+          role: "patient",
+          name: profile.name,
+          displayId: profile.patient_code,
+          blood_group: profile.blood_group,
+          email: profile.email,
+          phone: profile.phone,
+          date_of_birth: profile.date_of_birth,
+          emergency_contacts: profile.emergency_contacts,
+          conditions: profile.conditions,
+        }))
+      : getMe();
+
+    bootstrap
       .then((user) => {
         setCurrentUser(user);
       })
       .catch(() => {
-        // Token invalid or expired — clear it silently
         clearToken();
       })
       .finally(() => {

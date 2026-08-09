@@ -1,47 +1,54 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { User, Eye, EyeOff, AlertCircle, Info, Heart } from "lucide-react";
-import { useAppData } from "../../context/AppDataContext";
+import { User, Eye, EyeOff, AlertCircle, Heart } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { loginPatient, getPatientProfile } from "../../api/patientAuth.js";
+import { setToken } from "../../api/client.js";
 
 function PatientLoginPage() {
   const navigate = useNavigate();
-  const { authenticatePatient } = useAppData();
   const { login } = useAuth();
 
-  const [patientId, setPatientId] = useState("");
+  const [lflCode, setLflCode] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!patientId.trim() || !password.trim()) {
-      setError("Please enter both Patient ID and password.");
+    if (!lflCode.trim() || !password.trim()) {
+      setError("Please enter both your Lifeline Code and password.");
       return;
     }
 
     setIsLoading(true);
-
-    setTimeout(() => {
-      const patient = authenticatePatient(patientId.trim(), password);
-      if (patient) {
-        login({
-          id: patient.id,
-          role: "PATIENT",
-          name: patient.name,
-          displayId: patient.id,
-          bloodGroup: patient.bloodGroup,
-        });
-        navigate("/patient/dashboard");
-      } else {
-        setError("Invalid Patient ID or password. Please check your credentials.");
-        setIsLoading(false);
-      }
-    }, 600);
+    try {
+      const { access_token } = await loginPatient(lflCode.trim(), password);
+      // Store the token so getPatientProfile() can attach it
+      setToken(access_token);
+      const profile = await getPatientProfile();
+      login(access_token, {
+        id: profile.patient_code,
+        patient_id: profile.id,
+        role: "patient",
+        name: profile.name,
+        displayId: profile.patient_code,
+        blood_group: profile.blood_group,
+        email: profile.email,
+        phone: profile.phone,
+        date_of_birth: profile.date_of_birth,
+        emergency_contacts: profile.emergency_contacts,
+        conditions: profile.conditions,
+      });
+      navigate("/patient/dashboard");
+    } catch (err) {
+      setError(err.message || "Invalid Lifeline Code or password. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -63,7 +70,7 @@ function PatientLoginPage() {
             <User size={16} />
             Patient Portal
           </div>
-          <p className="text-slate-600">Sign in with your Patient ID to access your medical records.</p>
+          <p className="text-slate-600">Sign in with your Lifeline Code to access your medical records.</p>
         </div>
 
         {/* Card */}
@@ -78,13 +85,15 @@ function PatientLoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Patient ID</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                Lifeline Code (LFL-XXXXXX)
+              </label>
               <input
                 type="text"
-                value={patientId}
-                onChange={(e) => setPatientId(e.target.value)}
-                placeholder="PT-200001"
-                className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono"
+                value={lflCode}
+                onChange={(e) => setLflCode(e.target.value)}
+                placeholder="LFL-J6MTOC"
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 font-mono uppercase"
               />
             </div>
 
@@ -123,23 +132,13 @@ function PatientLoginPage() {
               )}
             </button>
           </form>
-
-          {/* Demo hint */}
-          <div className="mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 text-slate-600 text-sm font-semibold mb-2">
-              <Info size={14} />
-              Demo Credentials
-            </div>
-            <p className="text-xs text-slate-500 font-mono">PT-200001 / patient123</p>
-            <p className="text-xs text-slate-500 font-mono">PT-200002 / patient123</p>
-          </div>
         </div>
 
         <div className="text-center mt-6 space-y-2">
           <p className="text-slate-500 text-sm">
             New to Lifeline?&nbsp;
             <Link to="/patient/register" className="text-green-700 font-semibold hover:underline">
-              Create a Patient Account
+              Claim Your Patient Account
             </Link>
           </p>
           <p className="text-slate-500 text-sm">Are you a doctor?&nbsp;
