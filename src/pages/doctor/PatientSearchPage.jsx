@@ -4,7 +4,7 @@ import {
   Search, User, FileText, Upload, ClipboardList, ChevronRight,
   Activity, Clipboard, CheckCircle, ChevronDown, ChevronUp,
   Stethoscope, FlaskConical, Tag, FileSearch, X, ShieldCheck,
-  ZoomIn, ZoomOut, Download, Sparkles,
+  ZoomIn, ZoomOut, Download, Sparkles, Clock, AlertTriangle,
 } from "lucide-react";
 import { useAppData } from "../../context/AppDataContext";
 import { useAuth } from "../../context/AuthContext";
@@ -97,12 +97,27 @@ function PatientVisitBriefPanel({ patientId }) {
   );
 }
 
+// ─── Expiry helpers (same logic as DoctorRecordsPage) ────────────────────────
+function getExpiryInfo(expiresAt) {
+  if (!expiresAt) return null;
+  const msLeft = new Date(expiresAt) - Date.now();
+  const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+  if (daysLeft <= 0) {
+    return { daysLeft: 0, isExpired: true, label: "Access Expired", color: "bg-red-100 text-red-700 border-red-200" };
+  }
+  if (daysLeft <= 2) {
+    return { daysLeft, isExpired: false, label: `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`, color: "bg-orange-100 text-orange-700 border-orange-200" };
+  }
+  return { daysLeft, isExpired: false, label: `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`, color: "bg-yellow-50 text-yellow-700 border-yellow-200" };
+}
+
 // ─── Inline Report Viewer Modal ───────────────────────────────────────────────
-function ReportViewerModal({ report, patient, onClose }) {
+function ReportViewerModal({ report, patient, expiresAt, onClose }) {
   const [zoom, setZoom] = useState(1);
   const isPDF = report.fileName?.toLowerCase().endsWith(".pdf");
   const isImage = /\.(jpg|jpeg|png)$/i.test(report.fileName || "");
   const fileUrl = report.fileRef || null;
+  const expiry = getExpiryInfo(expiresAt);
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex flex-col" onClick={onClose}>
       <div className="flex flex-col w-full h-full max-w-5xl mx-auto" onClick={(e) => e.stopPropagation()}>
@@ -123,6 +138,15 @@ function ReportViewerModal({ report, patient, onClose }) {
             <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition"><X size={18} /></button>
           </div>
         </div>
+        {/* Expiry warning banner */}
+        {expiry && (
+          <div className={`flex items-center gap-3 px-6 py-2.5 border-b text-sm font-medium ${expiry.isExpired ? "bg-red-900/80 border-red-700 text-red-100" : "bg-yellow-900/60 border-yellow-700 text-yellow-100"}`}>
+            <AlertTriangle size={15} className="shrink-0" />
+            {expiry.isExpired
+              ? "Your approved access to this report has expired. The patient would need to re-approve."
+              : `Approved access ${expiry.label.toLowerCase()} — the patient's authorisation will end soon.`}
+          </div>
+        )}
         <div className="flex-1 overflow-auto bg-slate-800 p-6">
           {fileUrl && isPDF ? (
             <iframe src={fileUrl} title={report.fileName} className="w-full h-full rounded-xl" style={{ minHeight: "70vh" }} />
@@ -391,6 +415,26 @@ function PatientSearchPage() {
                 </div>
               </div>
 
+              {/* Access expiry banner — shown when doctor has approved access */}
+              {hasFullAccess && myAccessRequest?.expiresAt && (() => {
+                const expiry = getExpiryInfo(myAccessRequest.expiresAt);
+                if (!expiry) return null;
+                return (
+                  <div className={`flex items-center gap-3 p-4 rounded-2xl border mb-5 text-sm font-medium ${expiry.isExpired ? "bg-red-50 border-red-200 text-red-700" : expiry.daysLeft <= 2 ? "bg-orange-50 border-orange-200 text-orange-700" : "bg-yellow-50 border-yellow-200 text-yellow-700"}`}>
+                    <AlertTriangle size={16} className="shrink-0" />
+                    <span>
+                      {expiry.isExpired
+                        ? "Your approved access to this patient's records has expired. The patient would need to re-approve."
+                        : <>
+                            Approved access <strong>{expiry.label.toLowerCase()}</strong> — valid until{" "}
+                            <strong>{new Date(myAccessRequest.expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</strong>.
+                          </>
+                      }
+                    </span>
+                  </div>
+                );
+              })()}
+
               {accessibleReports.length === 0 ? (
                 <div className="text-center py-8 text-slate-400">
                   <FileText size={40} className="mx-auto mb-3 opacity-40" />
@@ -418,9 +462,20 @@ function PatientSearchPage() {
                             </div>
                           )}
                         </div>
-                        <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full shrink-0">
-                          {r.status}
-                        </span>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <span className="bg-green-100 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                            {r.status}
+                          </span>
+                          {hasFullAccess && myAccessRequest?.expiresAt && (() => {
+                            const expiry = getExpiryInfo(myAccessRequest.expiresAt);
+                            return expiry ? (
+                              <span className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full border ${expiry.color}`}>
+                                <Clock size={11} />
+                                {expiry.label}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                       </div>
                       <div className="mt-3 pl-1">
                         <button
@@ -445,6 +500,7 @@ function PatientSearchPage() {
           <ReportViewerModal
             report={viewingReport}
             patient={findPatient(viewingReport.patientId)}
+            expiresAt={hasFullAccess ? myAccessRequest?.expiresAt : null}
             onClose={() => setViewingReport(null)}
           />
         )}

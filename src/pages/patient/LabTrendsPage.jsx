@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useAppData } from "../../context/AppDataContext";
 import PatientLayout from "../../layouts/PatientLayout";
 import { TrendingUp, TrendingDown, Minus, FlaskConical, Info } from "lucide-react";
-import LabSparkline from "../../components/patient/LabSparkline";
+import LabChart from "../../components/patient/LabChart";
 
 // Reference ranges (display only — not for diagnosis)
 const REFERENCE_RANGES = {
@@ -62,10 +62,20 @@ function LabCard({ name, values }) {
         </div>
       </div>
 
-      {/* Sparkline */}
+      {/* Line chart */}
       {values.length >= 2 && (
-        <div className="mb-4">
-          <LabSparkline values={values} normal={isNormal} />
+        <div className="mb-4 -mx-1">
+          <LabChart
+            values={values}
+            refLow={ref?.low}
+            refHigh={ref?.high}
+            normal={isNormal}
+          />
+          {ref && (
+            <p className="text-xs text-slate-400 mt-1 text-center">
+              Shaded band = reference range ({ref.low}–{ref.high} {ref.unit})
+            </p>
+          )}
         </div>
       )}
 

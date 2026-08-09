@@ -3,6 +3,7 @@ import {
   LayoutDashboard, FileText, ClipboardList, Bell,
   LogOut, Heart, Activity, Pill, FlaskConical, CalendarDays,
   ClipboardCheck, Clipboard, Sparkles, UserCircle, KeyRound,
+  AlertOctagon, Users,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -33,6 +34,12 @@ function PatientSidebar() {
       items: [
         { name: "Care Plan", path: "/patient/care-plan", icon: ClipboardCheck },
         { name: "Appointments", path: "/patient/appointments", icon: CalendarDays },
+      ],
+    },
+    {
+      label: "Safety & Family",
+      items: [
+        { name: "Emergency Profile", path: "/patient/emergency", icon: AlertOctagon },
       ],
     },
     {

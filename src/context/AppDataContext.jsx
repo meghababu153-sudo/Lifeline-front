@@ -29,6 +29,34 @@ const MOCK_PATIENTS = [
         { name: "Rohit Sharma", relation: "Brother", phone: "9876500002" },
       ],
     },
+    familyMembers: [
+      {
+        memberId: "FM-001",
+        name: "Meena Sharma",
+        relation: "Mother",
+        dob: "1962-05-18",
+        bloodGroup: "O+",
+        phone: "9876500001",
+        conditions: ["Type 2 Diabetes (managed)", "Hypertension"],
+        medications: ["Metformin 500 mg", "Amlodipine 5 mg"],
+        allergies: ["Aspirin"],
+        lastCheckup: "2026-04-10",
+        notes: "Annual cardiology review due in Oct 2026.",
+      },
+      {
+        memberId: "FM-002",
+        name: "Rohit Sharma",
+        relation: "Brother",
+        dob: "1998-11-02",
+        bloodGroup: "B+",
+        phone: "9876500002",
+        conditions: [],
+        medications: [],
+        allergies: [],
+        lastCheckup: "2025-09-20",
+        notes: "",
+      },
+    ],
   },
   {
     id: "PT-200002",
@@ -47,6 +75,21 @@ const MOCK_PATIENTS = [
         { name: "Kiran Patel", relation: "Husband", phone: "9123400001" },
       ],
     },
+    familyMembers: [
+      {
+        memberId: "FM-003",
+        name: "Kiran Patel",
+        relation: "Husband",
+        dob: "1985-03-30",
+        bloodGroup: "B+",
+        phone: "9123400001",
+        conditions: ["Mild asthma"],
+        medications: ["Salbutamol inhaler (as needed)"],
+        allergies: ["Pollen"],
+        lastCheckup: "2026-02-14",
+        notes: "Spirometry test recommended at next visit.",
+      },
+    ],
   },
 ];
 
@@ -698,6 +741,15 @@ export function AppDataProvider({ children }) {
     setCarePlan((prev) => prev.map((c) => c.itemId === itemId ? { ...c, ...updates } : c));
   }, []);
 
+  // ── Family Members ────────────────────────────────────────────────────────────
+  const getFamilyMembers = useCallback(
+    (patientId) => {
+      const patient = patients.find((p) => p.id === patientId);
+      return patient?.familyMembers || [];
+    },
+    [patients]
+  );
+
   // ── Emergency Profile ─────────────────────────────────────────────────────────
   const getEmergencyProfile = useCallback(
     (patientId) => {
@@ -806,7 +858,7 @@ export function AppDataProvider({ children }) {
       uploadReport, getPatientReports, getDoctorAccessibleReports,
       // Derived health data
       getPatientMedications, getPatientTimeline, getPatientLabTrends,
-      getPatientVisitBrief, getEmergencyProfile,
+      getPatientVisitBrief, getEmergencyProfile, getFamilyMembers,
       // Appointments
       getPatientAppointments, addAppointment,
       // Care Plan

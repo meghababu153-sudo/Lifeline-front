@@ -331,8 +331,8 @@ function DoctorRecordsPage() {
                             {expiry.label}
                           </span>
                         ) : (
-                          <span className="bg-purple-100 text-purple-600 text-xs font-semibold px-3 py-1 rounded-full">
-                            Approved Access
+                          <span className="bg-purple-100 text-purple-600 text-xs font-semibold px-3 py-1 rounded-full border border-purple-200">
+                            Approved Access · No expiry
                           </span>
                         );
                       })()}
@@ -357,6 +357,24 @@ function DoctorRecordsPage() {
                       <p className="font-semibold text-slate-700 mb-0.5">Verification</p>
                       <p className="text-green-600 font-semibold">{r.status}</p>
                     </div>
+                    {r.uploadedBy !== currentUser.id && (
+                      <div className="col-span-2 md:col-span-4 border-t pt-3 mt-1">
+                        <p className="font-semibold text-slate-700 mb-0.5 flex items-center gap-1.5">
+                          <Clock size={11} /> Access Expires
+                        </p>
+                        {r._expiresAt ? (
+                          <p className={getExpiryInfo(r._expiresAt)?.isExpired ? "text-red-600 font-semibold" : "text-slate-600"}>
+                            {new Date(r._expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                            {" — "}
+                            {getExpiryInfo(r._expiresAt)?.isExpired
+                              ? "Expired — patient re-approval needed"
+                              : getExpiryInfo(r._expiresAt)?.label}
+                          </p>
+                        ) : (
+                          <p className="text-slate-400">No expiry set — access is indefinite until patient revokes it.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* View button */}
