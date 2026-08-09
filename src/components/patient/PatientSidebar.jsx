@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, FileText, ClipboardList, Bell,
   LogOut, Heart, Activity, Pill, FlaskConical, CalendarDays,
-  ClipboardCheck, Clipboard, Sparkles, UserCircle,
+  ClipboardCheck, Clipboard, Sparkles, UserCircle, KeyRound,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -40,6 +40,7 @@ function PatientSidebar() {
       items: [
         { name: "Access Requests", path: "/patient/access-requests", icon: ClipboardList },
         { name: "Notifications", path: "/patient/notifications", icon: Bell },
+        { name: "My OTP", path: "/patient/otp", icon: KeyRound },
         { name: "Profile", path: "/patient/profile", icon: UserCircle },
       ],
     },
