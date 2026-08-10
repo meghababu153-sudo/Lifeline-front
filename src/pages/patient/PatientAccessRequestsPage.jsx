@@ -10,9 +10,9 @@ function getPendingConsents() {
   return api.get("/consent/pending");
 }
 
-function respondToConsent(consentId, decision) {
-  // decision: "approved" | "denied"
-  return api.post(`/consent/${encodeURIComponent(consentId)}/respond`, { decision });
+function respondToConsent(consentId, action) {
+  // action: "approved" | "denied"
+  return api.post(`/consent/${encodeURIComponent(consentId)}/respond`, { action });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

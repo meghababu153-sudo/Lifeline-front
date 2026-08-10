@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Stethoscope, Eye, EyeOff, AlertCircle, Heart } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { loginDoctor, getMe } from "../../api/auth.js";
+import { setToken } from "../../api/client.js";
 
 function DoctorLoginPage() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ function DoctorLoginPage() {
     setIsLoading(true);
     try {
       const { access_token } = await loginDoctor(email.trim(), password);
+      setToken(access_token);
       const user = await getMe();
       login(access_token, user);
       navigate("/doctor/dashboard");

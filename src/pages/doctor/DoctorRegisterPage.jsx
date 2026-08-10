@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Stethoscope, Eye, EyeOff, AlertCircle, Heart, CheckCircle, ShieldCheck, Info, Loader } from "lucide-react";
-import { registerDoctor, verifyRegistration } from "../../api/auth.js";
+import { Stethoscope, Eye, EyeOff, AlertCircle, Heart, CheckCircle, ShieldCheck } from "lucide-react";
+import { registerDoctor } from "../../api/auth.js";
 
 const SPECIALIZATIONS = [
   "Cardiology",
@@ -27,30 +27,6 @@ function DoctorRegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(null); // { id, name }
   const [isLoading, setIsLoading] = useState(false);
-
-  // ── Live medRegNo validation ────────────────────────────────────────────────
-  // regStatus: null | "checking" | { valid: boolean, reason: string | null }
-  const [regStatus, setRegStatus] = useState(null);
-  const debounceRef = useRef(null);
-
-  useEffect(() => {
-    const val = form.medRegNo.trim();
-    if (!val) {
-      setRegStatus(null);
-      return;
-    }
-    setRegStatus("checking");
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const result = await verifyRegistration(val);
-        setRegStatus(result);
-      } catch {
-        setRegStatus({ valid: false, reason: "Could not verify — check your connection." });
-      }
-    }, 500);
-    return () => clearTimeout(debounceRef.current);
-  }, [form.medRegNo]);
 
   const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -79,11 +55,6 @@ function DoctorRegisterPage() {
       setError("Passwords do not match.");
       return;
     }
-    if (regStatus && regStatus !== "checking" && !regStatus.valid) {
-      setError(regStatus.reason || "Medical registration number is not valid.");
-      return;
-    }
-
     setIsLoading(true);
     try {
       await registerDoctor(
@@ -215,47 +186,16 @@ function DoctorRegisterPage() {
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   Medical Registration Number
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={form.medRegNo}
-                    onChange={set("medRegNo")}
-                    placeholder="MED-REG-001"
-                    className={`w-full border rounded-xl px-4 py-3 pr-10 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      regStatus && regStatus !== "checking"
-                        ? regStatus.valid
-                          ? "border-green-400 bg-green-50"
-                          : "border-red-400 bg-red-50"
-                        : "border-slate-300"
-                    }`}
-                  />
-                  {/* Inline status icon */}
-                  <div className="absolute right-3 top-3.5">
-                    {regStatus === "checking" && (
-                      <Loader size={16} className="text-slate-400 animate-spin" />
-                    )}
-                    {regStatus && regStatus !== "checking" && regStatus.valid && (
-                      <CheckCircle size={16} className="text-green-600" />
-                    )}
-                    {regStatus && regStatus !== "checking" && !regStatus.valid && (
-                      <AlertCircle size={16} className="text-red-500" />
-                    )}
-                  </div>
-                </div>
-                {/* Status message */}
-                {regStatus && regStatus !== "checking" && (
-                  <p className={`text-xs mt-1.5 ${regStatus.valid ? "text-green-600" : "text-red-600"}`}>
-                    {regStatus.valid
-                      ? "Registration number verified ✓"
-                      : regStatus.reason || "Registration number not found in registry."}
-                  </p>
-                )}
-                {!regStatus && (
-                  <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
-                    <Info size={11} />
-                    Issued by the Medical Council — validated in real time.
-                  </p>
-                )}
+                <input
+                  type="text"
+                  value={form.medRegNo}
+                  onChange={set("medRegNo")}
+                  placeholder="MED-REG-001"
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1.5">
+                  Issued by the Medical Council. Required for doctor registration.
+                </p>
               </div>
 
               <div>
@@ -291,7 +231,7 @@ function DoctorRegisterPage() {
 
               <button
                 type="submit"
-                disabled={isLoading || regStatus === "checking"}
+                disabled={isLoading}
                 className="w-full bg-blue-600 text-white rounded-xl py-4 font-semibold hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
               >
                 {isLoading ? (

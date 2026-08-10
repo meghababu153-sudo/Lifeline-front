@@ -84,7 +84,7 @@ function PatientDashboard() {
   // Build lab trends map for sparklines
   const labs = {};
   reports.forEach((r) => {
-    (r.lab_values || []).forEach((lv) => {
+    (Array.isArray(r.lab_values) ? r.lab_values : []).forEach((lv) => {
       if (!labs[lv.name]) labs[lv.name] = [];
       labs[lv.name].push(lv);
     });

@@ -2,20 +2,28 @@
  * src/api/patientAuth.js
  * Patient auth and profile API calls.
  *
- * All field names and endpoint paths match the BE-1 API contract exactly.
+ * All field names and endpoint paths match the API contract exactly.
  */
 
 import { api } from "./client.js";
 
 /**
  * POST /patient/register
- * Claim a pre-existing patient account with an LFL code and password.
- * @param {string} lflCode   - e.g. "LFL-J6MTOC"
+ * Patient self-registration — no LFL code is supplied by the patient.
+ * The backend generates and returns a unique LFL code in the 201 response.
+ *
+ * @param {string} name
+ * @param {string} phone
  * @param {string} password
- * @returns {object} patient object (without password_hash)
+ * @param {string|null} email       - optional
+ * @param {string|null} dateOfBirth - optional, "YYYY-MM-DD"
+ * @returns {{ id, patient_code, name, phone, email, date_of_birth, created_at }}
  */
-export function registerPatient(lflCode, password) {
-  return api.post("/patient/register", { lfl_code: lflCode, password });
+export function registerPatient(name, phone, password, email = null, dateOfBirth = null) {
+  const body = { name, phone, password };
+  if (email) body.email = email;
+  if (dateOfBirth) body.date_of_birth = dateOfBirth;
+  return api.post("/patient/register", body);
 }
 
 /**

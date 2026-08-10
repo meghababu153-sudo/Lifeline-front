@@ -1,8 +1,8 @@
 /**
  * src/api/auth.js
- * Auth API calls — doctor login, registration, verification, and /me.
+ * Auth API calls — doctor/clerk login, registration, and /me.
  *
- * All field names and endpoint paths match the BE-1 API contract exactly.
+ * All field names and endpoint paths match the API contract exactly.
  */
 
 import { api } from "./client.js";
@@ -18,15 +18,16 @@ export function loginDoctor(email, password) {
 }
 
 /**
- * POST /auth/register
- * Registers a doctor account. med_reg_no is validated against the backend registry.
+ * POST /auth/register  (returns 201)
+ * Registers a doctor account. med_reg_no is required for role='doctor' and
+ * is enforced by the backend; no external registry verification is performed.
  * @param {string} name
  * @param {string} email
  * @param {string} phone
  * @param {string} specialization
  * @param {string} medRegNo
  * @param {string} password
- * @returns {{ id: number, name: string, email: string, role: string, … }}
+ * @returns {{ message: string, user: object[] }}
  */
 export function registerDoctor(name, email, phone, specialization, medRegNo, password) {
   return api.post("/auth/register", {
@@ -41,20 +42,11 @@ export function registerDoctor(name, email, phone, specialization, medRegNo, pas
 }
 
 /**
- * GET /auth/verify-registration?med_reg_no=XXX
- * Public endpoint — no auth required.
- * @param {string} medRegNo
- * @returns {{ valid: boolean, reason: string | null }}
- */
-export function verifyRegistration(medRegNo) {
-  return api.get(`/auth/verify-registration?med_reg_no=${encodeURIComponent(medRegNo)}`);
-}
-
-/**
  * GET /auth/me
- * Returns the currently authenticated user.
- * @returns {{ id: number, name: string, email: string, role: string, specialization?: string, phone?: string }}
+ * The backend returns { message, user: { sub, user_id, role, … } }.
+ * We unwrap the envelope here so callers always receive the user object directly.
+ * @returns {{ sub: string, user_id: number, role: string, specialization?: string, phone?: string }}
  */
 export function getMe() {
-  return api.get("/auth/me");
+  return api.get("/auth/me").then((res) => res.user);
 }

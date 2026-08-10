@@ -138,7 +138,7 @@ function PatientLoginPage() {
           <p className="text-slate-500 text-sm">
             New to Lifeline?&nbsp;
             <Link to="/patient/register" className="text-green-700 font-semibold hover:underline">
-              Claim Your Patient Account
+              Create a Patient Account
             </Link>
           </p>
           <p className="text-slate-500 text-sm">Are you a doctor?&nbsp;

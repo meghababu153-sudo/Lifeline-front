@@ -5,15 +5,32 @@ import { Activity, Filter, Loader } from "lucide-react";
 import { api } from "../../api/client.js";
 
 const ACTION_COLORS = {
+  // frontend-only (AppDataContext)
   LOGIN:                    "bg-green-100 text-green-700",
   LOGOUT:                   "bg-slate-100 text-slate-600",
   SESSION_EXPIRED:          "bg-orange-100 text-orange-700",
-  REPORT_UPLOADED:          "bg-blue-100 text-blue-700",
-  ACCESS_REQUEST_CREATED:   "bg-yellow-100 text-yellow-700",
-  ACCESS_APPROVED:          "bg-green-100 text-green-700",
-  ACCESS_DENIED:            "bg-red-100 text-red-700",
-  REPORT_VIEWED:            "bg-purple-100 text-purple-700",
+  // backend-persisted (access_logs)
+  doctor_login:             "bg-green-100 text-green-700",
+  clerk_login:              "bg-green-100 text-green-700",
+  patient_searched:         "bg-blue-100 text-blue-700",
+  consent_requested:        "bg-yellow-100 text-yellow-700",
+  consent_approved:         "bg-green-100 text-green-700",
+  consent_denied:           "bg-red-100 text-red-700",
+  record_uploaded:          "bg-blue-100 text-blue-700",
+  records_accessed:         "bg-purple-100 text-purple-700",
+  record_file_downloaded:   "bg-purple-100 text-purple-700",
 };
+
+/**
+ * Format a metadata JSONB object (or null) into a compact readable string
+ * suitable for the Details column.  Never renders medical record contents.
+ */
+function formatMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object") return "—";
+  return Object.entries(metadata)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(" · ");
+}
 
 function DoctorAuditPage() {
   const { currentUser } = useAuth();
@@ -97,7 +114,9 @@ function DoctorAuditPage() {
                         {log.action}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-600 max-w-xs truncate">{log.details || log.description || "—"}</td>
+                    <td className="px-6 py-4 text-slate-600 max-w-xs truncate" title={log.metadata ? JSON.stringify(log.metadata) : undefined}>
+                      {formatMetadata(log.metadata)}
+                    </td>
                     <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
                       {new Date(log.timestamp || log.created_at || Date.now()).toLocaleString("en-IN")}
                     </td>

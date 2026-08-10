@@ -21,7 +21,7 @@ export default function ProtectedRoute({ children, requiredRole, redirectTo = "/
   // Token present but getMe() hasn't resolved yet (edge case — handled by bootstrapping)
   if (!currentUser) return null;
 
-  if (requiredRole && currentUser.role !== requiredRole) {
+  if (requiredRole && currentUser.role.toLowerCase() !== requiredRole.toLowerCase()) {
     // Wrong portal — send to their own portal
     if (currentUser.role === "doctor") return <Navigate to="/doctor/dashboard" replace />;
     if (currentUser.role === "patient") return <Navigate to="/patient/dashboard" replace />;

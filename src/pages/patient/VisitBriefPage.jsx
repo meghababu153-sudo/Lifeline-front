@@ -65,7 +65,7 @@ function VisitBriefPage() {
           (r.allergies || []).forEach((a) => allAllergies.add(a));
           (r.medicines || []).forEach((m) => allMeds.push({ ...m, from: r.file_name }));
           (r.follow_ups || []).forEach((f) => allFollowUps.push({ text: f, from: r.file_name, date: r.created_at }));
-          (r.lab_values || []).forEach((lv) => {
+          (Array.isArray(r.lab_values) ? r.lab_values : []).forEach((lv) => {
             if (!latestLabs[lv.name] || new Date(lv.date) > new Date(latestLabs[lv.name].date)) {
               latestLabs[lv.name] = lv;
             }

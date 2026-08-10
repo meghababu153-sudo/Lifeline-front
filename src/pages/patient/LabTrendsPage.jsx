@@ -106,7 +106,7 @@ function LabTrendsPage() {
         // Build trend map: group lab_values by name across all records, sort by date
         const labMap = {};
         (Array.isArray(records) ? records : []).forEach((r) => {
-          (r.lab_values || []).forEach((lv) => {
+          (Array.isArray(r.lab_values) ? r.lab_values : []).forEach((lv) => {
             if (!labMap[lv.name]) labMap[lv.name] = [];
             labMap[lv.name].push({ ...lv, reportId: r.id, reportFile: r.file_name });
           });
